@@ -10,6 +10,7 @@ const sendEmail = require("../../utils/sendEmail");
 const userModel = require("./user.model");
 const transactionModel = require("../transaction/transaction.model");
 const warrantyModel = require("../warranty/warranty.model");
+const { s3Uploadv2 } = require('../../utils/s3');
 
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SERVICE_SID } = process.env;
 const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
@@ -112,6 +113,39 @@ exports.resendOTP = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ message: "OTP sent successfully" });
 });
 
+// Get Profile
+exports.getProfile = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const user = await userModel.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User Not Found", 404));
+  }
+
+  res.status(200).json({ user });
+});
+
+// Update Profile
+exports.updateProfile = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const file = req.file;
+  if (file) {
+    const results = await s3Uploadv2(file, 'jeff');
+    const location = results.Location && results.Location;
+    req.body.profile_url = location;
+  }
+
+  delete req.body.password;
+  delete req.body.mobile_no;
+
+  console.log("update profile", { body: req.body });
+  const user = await userModel.findByIdAndUpdate(userId, req.body, {
+    new: true,
+    runValidators: true,
+    validateBeforeSave: true
+  });
+
+  res.status(200).json({ message: "Profile Updated Successfully.", user });
+});
 
 // Get a single document by ID
 exports.getUser = catchAsyncError(async (req, res, next) => {
@@ -224,17 +258,7 @@ exports.getUser = catchAsyncError(async (req, res, next) => {
 });
 
 // Update a document by ID
-exports.updateProfile = catchAsyncError(async (req, res, next) => {
-  const userId = req.userId;
-  if (!isValidObjectId(userId)) {
-    return next(new ErrorHandler("Invalid User ID", 400));
-  }
 
-  delete req.body.password;
-
-  console.log("update profile", { body: req.body })
-  await userUpdate(userId, req.body, res, next);
-});
 
 exports.updatePassword = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;

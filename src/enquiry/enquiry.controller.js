@@ -2,11 +2,20 @@ const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
 const enquiryModel = require("./enquiry.model");
+const { s3Uploadv2 } = require("../../utils/s3");
 
 
 // Create a new document
 exports.createEnquiry = catchAsyncError(async (req, res, next) => {
-  const enquiry = await enquiryModel.create(req.body);
+  const userId = req.userId;
+  const file = req.file;
+  if (file) {
+    const results = await s3Uploadv2(file, 'jeff/enquiry');
+    const location = results.Location && results.Location;
+    req.body.image = location;
+  }
+
+  const enquiry = await enquiryModel.create({...req.body, user: userId});
   res.status(201).json({ enquiry });
 });
 

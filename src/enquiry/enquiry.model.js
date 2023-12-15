@@ -1,22 +1,18 @@
 const mongoose = require('mongoose');
 
 const enquirySchema = new mongoose.Schema({
-	fullname: {
-		type: String,
-		required: [true, "Fullname is required."],
-	},
-	email: {
-		type: String,
-		required: [true, "Email is required."],
+	user: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "User",
+		required: [true, "User ID is required."]
 	},
 	message: {
 		type: String,
 		required: [true, "Message is required."],
 	},
-	// department: {
-	// 	type: String,
-	// 	required: [true, "Department is required."],
-	// },
+	image: {
+		type: String
+	}
 }, { timestamps: true });
 
 const enquiryModel = mongoose.model('Enquiry', enquirySchema);
