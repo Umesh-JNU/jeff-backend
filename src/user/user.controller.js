@@ -8,15 +8,13 @@ const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
 const sendEmail = require("../../utils/sendEmail");
 const userModel = require("./user.model");
-const transactionModel = require("../transaction/transaction.model");
-const warrantyModel = require("../warranty/warranty.model");
 const { s3Uploadv2 } = require('../../utils/s3');
 
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SERVICE_SID } = process.env;
 const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
-const findUser = async (mobile_no, next) => {
-  const user = await userModel.findOne({ mobile_no });
+const findUser = async (options, next) => {
+  const user = await userModel.findOne(options);
   if (!user) {
     return next(new ErrorHandler("User with mobile number is not registered.", 404));
   }
@@ -39,9 +37,13 @@ exports.createUser = catchAsyncError(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const user = (await userModel.create([req.body], { session }))[0];
+    let user = await userModel.findOne({ mobile_no: req.body.mobile_no }).select("+isRegistered");
+    console.log({ user })
     if (!user) {
-      return next(new ErrorHandler("Something Went Wrong. Please try again.", 500));
+      user = (await userModel.create([req.body], { session }))[0];
+    } else {
+      if (user.isRegistered)
+        return next(new ErrorHandler("User is already registered with this mobile number.", 400));
     }
 
     const phoneNo = `+${user.country_code}${user.mobile_no}`;
@@ -66,7 +68,7 @@ exports.login = catchAsyncError(async (req, res, next) => {
   if (!mobile_no)
     return next(new ErrorHandler("Please enter your mobile number", 400));
 
-  const user = await findUser(mobile_no, next);
+  const user = await findUser({ mobile_no, isRegistered: true }, next);
   const phoneNo = `+${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await sendOTP(phoneNo);
@@ -86,10 +88,13 @@ exports.verifyOtp = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Mobile Number is required.", 400));
   }
 
-  const user = await findUser(mobile_no, next);
+  const user = await findUser({ mobile_no }, next);
   const phoneNo = `+${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await verifyOTP(phoneNo, code);
+  
+  user.isRegistered = true;
+  await user.save();
 
   const token = await user.getJWTToken();
   res.status(200).json({
@@ -105,7 +110,7 @@ exports.resendOTP = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Mobile number is required.", 400));
   }
 
-  const user = await findUser(mobile_no, next);
+  const user = await findUser({ mobile_no, isRegistered: true }, next);
   const phoneNo = `+${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await sendOTP(phoneNo);

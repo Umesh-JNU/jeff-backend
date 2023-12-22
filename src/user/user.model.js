@@ -14,21 +14,6 @@ const validatePassword = (password) => {
 	return re.test(password);
 };
 
-const addrSchema = new mongoose.Schema({
-	address: {
-		type: String,
-		required: [true, "Address is required."]
-	},
-	city: {
-		type: String,
-		required: [true, "City is required."]
-	},
-	postcode: {
-		type: String,
-		required: [true, "Postcode is required."]
-	},
-});
-
 const userSchema = new mongoose.Schema({
 	email: {
 		type: String,
@@ -67,6 +52,11 @@ const userSchema = new mongoose.Schema({
 		default: "driver",
 		enum: ["driver", "admin"],
 	},
+	isRegistered: {
+		select: false,
+		type: Boolean,
+		default: false
+	}
 	// resetPasswordToken: String,
   // resetPasswordExpire: Date,
 }, { timestamps: true });

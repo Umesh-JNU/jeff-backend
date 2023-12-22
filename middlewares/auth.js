@@ -28,17 +28,15 @@ exports.auth = async (req, res, next) => {
   }
 };
 
-exports.authRole = (roles) => async (req, res, next) => {
+exports.isAdmin = async (req, res, next) => {
   try {
     const userId = req.userId;
-    const user = await userModel.findById(userId);
+    const user = await userModel.findById(userId).select("+password");
 
-    console.log("inside is admin")
-    // , userId, user.dataValues);
     if (!user)
-      return next(new ErrorHandler("Invalid token. User not found.", 404));
+      return next(new ErrorHandler("Invalid token. User not found.", 401));
 
-    if (!roles.includes(user.role))
+    if (user.role !== "admin")
       return next(new ErrorHandler("Restricted.", 401));
 
     req.user = user;
