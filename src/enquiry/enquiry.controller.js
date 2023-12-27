@@ -24,7 +24,7 @@ exports.getAllEnquiry = catchAsyncError(async (req, res, next) => {
   console.log("all enquiry", req.query);
 
   const apiFeature = new APIFeatures(
-    enquiryModel.find().sort({ createdAt: -1 }),
+    enquiryModel.find().sort({ createdAt: -1 }).populate("user", ["firstname", "lastname", "mobile_no"]),
     req.query
   ).search("email");
 
@@ -45,9 +45,9 @@ exports.getAllEnquiry = catchAsyncError(async (req, res, next) => {
 exports.getEnquiry = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const enquiry = await enquiryModel.findById(id);
+  const enquiry = await enquiryModel.findById(id).populate("user", ["firstname", "lastname", "mobile_no"]);
   if (!enquiry) {
-    return next(new ErrorHandler("Enquiry not found.", 404));
+    return next(new ErrorHandler("Message not found.", 404));
   }
 
   res.status(200).json({ enquiry });
@@ -62,7 +62,7 @@ exports.updateEnquiry = catchAsyncError(async (req, res, next) => {
     useFindAndModify: false,
   });
 
-  if (!enquiry) return next(new ErrorHandler('Enquiry not found', 404));
+  if (!enquiry) return next(new ErrorHandler('Message not found', 404));
 
   res.status(200).json({ enquiry });
 });
@@ -73,11 +73,11 @@ exports.deleteEnquiry = catchAsyncError(async (req, res, next) => {
   let enquiry = await enquiryModel.findById(id);
 
   if (!enquiry)
-    return next(new ErrorHandler("Enquiry not found", 404));
+    return next(new ErrorHandler("Message not found", 404));
 
   await enquiry.deleteOne();
 
   res.status(200).json({
-    message: "Enquiry Deleted successfully.",
+    message: "Message Deleted successfully.",
   });
 });

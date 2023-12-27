@@ -12,24 +12,41 @@ router.put("/update-profile", auth, isAdmin, updateAdminProfile);
 // ------------------------------------ USER ---------------------------------
 const { getAllUser, getUser, updateUser, deleteUser } = require("../user");
 
-
-const { deleteEnquiry, getEnquiry, getAllEnquiry, updateEnquiry } = require("../enquiry");
-
-
-
-router.get("/users", auth, isAdmin, getAllUser);
+router.get("/user", auth, isAdmin, getAllUser);
 router.route("/user/:id")
   .get(auth, isAdmin, getUser)
   .put(auth, isAdmin, updateUser)
   .delete(auth, isAdmin, deleteUser);
 
+// ------------------------------------ MESSAGE ---------------------------------
+const { getAllEnquiry, getEnquiry, deleteEnquiry } = require("../enquiry");
 
 router.get("/enquiry", auth, isAdmin, getAllEnquiry);
 router.route("/enquiry/:id")
   .get(auth, isAdmin, getEnquiry)
-  .put(auth, isAdmin, updateEnquiry)
   .delete(auth, isAdmin, deleteEnquiry);
 
 router.post("/image", auth, isAdmin, upload.single('image'), postSingleImage);
+
+// ------------------------------------ TRUCK ---------------------------------
+const { createTruck, getAllTruck, getTruck, updateTruck, deleteTruck } = require("../trucks");
+
+router.post("/truck", auth, isAdmin, createTruck);
+router.get("/truck", auth, isAdmin, getAllTruck);
+router.route("/truck/:id")
+  .get(auth, isAdmin, getTruck)
+  .put(auth, isAdmin, updateTruck)
+  .delete(auth, isAdmin, deleteTruck);
+
+  // ------------------------------------ Mill ---------------------------------
+const { createMill, getAllMill, getMill, updateMill, deleteMill } = require("../mill");
+
+router.post("/mill", auth, isAdmin, createMill);
+router.get("/mill", auth, isAdmin, getAllMill);
+router.route("/mill/:id")
+  .get(auth, isAdmin, getMill)
+  .put(auth, isAdmin, updateMill)
+  .delete(auth, isAdmin, deleteMill);
+
 
 module.exports = router;
