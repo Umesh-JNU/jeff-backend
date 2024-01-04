@@ -11,7 +11,7 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
   console.log("createTrip", req.body);
   const userId = req.userId;
 
-  const trip = await tripModel.create({ ...req.body, user: userId });
+  const trip = await tripModel.create({ ...req.body, driver: userId });
   if (trip) {
     await truckModel.findByIdAndUpdate(req.body.truck, { is_avail: false }, {
       new: true,
@@ -40,7 +40,7 @@ exports.getTrip = catchAsyncError(async (req, res, next) => {
 // Get Current Trip of Driver
 exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-  const trip = await tripModel.findOne({ user: userId, status: "on-going" }).populate([
+  const trip = await tripModel.findOne({ driver: userId, status: "on-going" }).populate([
     { path: "source", select: "name lat long" },
     { path: "dest", select: "name lat long" },
     { path: "truck", select: "truck_id plate_no name" }
@@ -61,7 +61,7 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
       { path: "truck", select: "truck_id plate_no name" },
       { path: "source", select: "name lat long" },
       { path: "dest", select: "name lat long" },
-      { path: "user", select: "firstname lastname mobile_no" },
+      { path: "driver", select: "firstname lastname mobile_no" },
     ]),
     req.query
   ).search("trip_id");
