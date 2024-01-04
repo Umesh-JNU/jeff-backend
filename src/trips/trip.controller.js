@@ -1,7 +1,7 @@
 const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
-const tripModel = require("./trip.model");
+const { tripModel, subTripModel } = require("./trip.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const { v4: uuid } = require("uuid");
 const truckModel = require("../trucks/truck.model");

@@ -21,6 +21,10 @@ const tripSchema = new mongoose.Schema({
 		ref: "Location",
 		required: [true, "Destination is required."],
 	},
+	dispatch: {
+		type: String,
+		required: [true, "Dispatch info is required."]
+	},
 	start_milage: {
 		type: Number,
 		required: [true, "Start Milage is Required."],
@@ -28,7 +32,7 @@ const tripSchema = new mongoose.Schema({
 	end_milage: { type: Number },
 	arrival_time: { type: Date },
 	load_time: { type: String },
-	user: {
+	driver: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
 		required: [true, "Driver is required."]
@@ -40,6 +44,44 @@ const tripSchema = new mongoose.Schema({
 	}
 }, { timestamps: true });
 
-const tripModel = mongoose.model('Trip', tripSchema);
+const subTripSchema = new mongoose.Schema({
+	docs: [{ type: String }],
+	mill_id: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Mill",
+		required: [true, "Mill is required for a trip."],
+	},
+	prod_detail: {
+		type: String,
+		required: [true, "Product detail is required."]
+	},
+	block_name: {
+		type: String,
+		required: [true, "Block Name is required."]
+	},
+	source: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Location",
+		required: [true, "Source is required."],
+	},
+	dest: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Location",
+		required: [true, "Destination is required."],
+	},
+	arrival_time: { type: Date },
+	gross_wt: {		type: Number},
+	tare_wt: {		type: Number},
+	net_wt: {		type: Number},
+	unload_time: { type: String },
+	trip: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Trip",
+		required: [true, "Trip Reference is required."]
+	},
+}, { timestamps: true });
 
-module.exports = tripModel;
+const tripModel = mongoose.model('Trip', tripSchema);
+const subTripModel = mongoose.model('SubTrip', subTripSchema);
+
+module.exports = { tripModel, subTripModel };

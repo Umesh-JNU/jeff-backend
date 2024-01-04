@@ -3,7 +3,7 @@ const { default: mongoose, isValidObjectId } = require('mongoose');
 const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
-const userModel = require("./user.model");
+const { userModel, logModel } = require("./user.model");
 const { s3Uploadv2 } = require('../../utils/s3');
 
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SERVICE_SID } = process.env;
@@ -230,4 +230,43 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     message: "Driver Deleted successfully.",
   });
+});
+
+// --------------------------------- USER LOG ---------------------------------
+exports.checkIn = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+
+  const currentTime = Date.now();
+  const todayDate = new Date().setHours(0, 0, 0, 0);
+  let todayLog = await logModel.findOne({
+    user: userId,
+    start: { $lte: currentTime, $gt: todayDate }
+  });
+
+  if (!todayLog) {
+    todayLog = await logModel.create({ user: userId, start: Date.now() });
+  }
+  res.status(200).json({ todayLog });
+});
+
+exports.checkOut = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const { logId } = req.body;
+
+  let todayLog = await logModel.findOne({
+    user: userId,
+    _id: logId
+  });
+
+  if (!todayLog) {
+    return next(new ErrorHandler("You haven't checked in.", 400));
+  }
+
+  const nextDate = new Date(todayLog.start).setUTCHours(24, 0, 0, 0);
+  console.log({nextDate, v: nextDate < Date.now()})
+  if (Date.now() < nextDate) {
+    todayLog.end = Date.now();
+    await todayLog.save();
+  }
+  res.status(200).json({ todayLog });
 });

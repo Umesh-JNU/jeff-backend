@@ -14,6 +14,24 @@ const validatePassword = (password) => {
 	return re.test(password);
 };
 
+const logSchema = new mongoose.Schema({
+	user: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "User",
+		require: [true, "User Id is required."]
+	},
+	start: {
+		type: mongoose.Schema.Types.Date,
+		required: [true, "Start Time is required."],
+	},
+	end: {
+		type: mongoose.Schema.Types.Date,
+		// required: [true, "End Time is required."],
+	}
+});
+
+const logModel = mongoose.model('UserLog', logSchema);
+
 const userSchema = new mongoose.Schema({
 	email: {
 		type: String,
@@ -58,7 +76,7 @@ const userSchema = new mongoose.Schema({
 		default: false
 	}
 	// resetPasswordToken: String,
-  // resetPasswordExpire: Date,
+	// resetPasswordExpire: Date,
 }, { timestamps: true });
 
 userSchema.pre("save", async function (next) {
@@ -79,20 +97,20 @@ userSchema.methods.getJWTToken = function () {
 
 // generating password reset token
 userSchema.methods.getResetPasswordToken = function () {
-  // generating token
-  const resetToken = crypto.randomBytes(20).toString("hex");
+	// generating token
+	const resetToken = crypto.randomBytes(20).toString("hex");
 
-  // hashing and adding resetPasswordToken to userSchema
-  this.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+	// hashing and adding resetPasswordToken to userSchema
+	this.resetPasswordToken = crypto
+		.createHash("sha256")
+		.update(resetToken)
+		.digest("hex");
 
-  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+	this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
-  return resetToken;
+	return resetToken;
 };
 
 const userModel = mongoose.model('User', userSchema);
 
-module.exports = userModel;
+module.exports = { userModel, logModel };

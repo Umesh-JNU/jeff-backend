@@ -1,7 +1,7 @@
 const catchAsyncError = require("../../utils/catchAsyncError");
 const ErrorHandler = require("../../utils/errorHandler");
 const APIFeatures = require("../../utils/apiFeatures");
-const userModel = require("../user/user.model");
+const { userModel } = require("../user/user.model");
 const { s3Uploadv2, s3UploadMulti } = require("../../utils/s3");
 const { enquiryModel } = require("../enquiry");
 
