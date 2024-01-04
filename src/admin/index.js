@@ -38,7 +38,7 @@ router.route("/truck/:id")
   .put(auth, isAdmin, updateTruck)
   .delete(auth, isAdmin, deleteTruck);
 
-  // ------------------------------------ Mill ---------------------------------
+// ------------------------------------ Mill ---------------------------------
 const { createMill, getAllMill, getMill, updateMill, deleteMill } = require("../mill");
 
 router.post("/mill", auth, isAdmin, createMill);
@@ -48,5 +48,12 @@ router.route("/mill/:id")
   .put(auth, isAdmin, updateMill)
   .delete(auth, isAdmin, deleteMill);
 
+// ------------------------------------ CONTENT ---------------------------------
+const { createContent, getContent, updateContent } = require("../content");
+
+router.route("/content")
+  .post(auth, isAdmin, createContent)
+  .get(auth, isAdmin, getContent)
+  .put(auth, isAdmin, updateContent);
 
 module.exports = router;
