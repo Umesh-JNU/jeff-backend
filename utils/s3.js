@@ -21,7 +21,7 @@ exports.s3Uploadv2 = async (file, dir) => {
   return await s3.upload(param).promise();
 };
 
-exports.s3UploadMulti = async (files) => {
+exports.s3UploadMulti = async (files, dir) => {
   const s3 = new S3({
     accessKeyId: process.env.AWS_ACCESS_KEY,
     secretAccessKey: process.env.AWS_SECRET_KEY,
@@ -29,11 +29,16 @@ exports.s3UploadMulti = async (files) => {
   });
 
   const params = files.map((file) => {
+    let key = `uploads/${Date.now().toString()}-${
+      file.originalname ? file.originalname : "not"
+    }`;
+    if(dir) {
+      key = `${dir}/${key}`;
+    }
+
     return {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `uploads/${Date.now().toString()}-${
-        file.originalname ? file.originalname : "not"
-      }`,
+      Key: key,
       Body: file.buffer,
     };
   });

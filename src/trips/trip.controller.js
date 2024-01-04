@@ -5,6 +5,7 @@ const { tripModel, subTripModel } = require("./trip.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const { v4: uuid } = require("uuid");
 const truckModel = require("../trucks/truck.model");
+const { s3UploadMulti } = require("../../utils/s3");
 
 // Create a new document
 exports.createTrip = catchAsyncError(async (req, res, next) => {
@@ -104,4 +105,24 @@ exports.deleteTrip = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     message: "Trip Deleted successfully.",
   });
-});   
+});
+
+// -------------------------- SECOND TRIP -----------------------
+exports.createSubTrip = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  let trip = await tripModel.findById(id);
+
+  if (!trip)
+    return next(new ErrorHandler("Trip not found", 404));
+
+  const files = req.files;
+  if (files) {
+    const results = await s3UploadMulti(files, 'jeff');
+    let location = results.map((result) => result.Location);
+    req.body.docs = location;
+  }
+
+  const subTrip = await subTripModel.create({ ...req.body, trip: id });
+
+  res.status(201).json({ subTrip });
+});

@@ -55,6 +55,10 @@ const subTripSchema = new mongoose.Schema({
 		type: String,
 		required: [true, "Product detail is required."]
 	},
+	slip_id: {
+		type: String,
+		required: [true, "Slip ID is required."]
+	},
 	block_name: {
 		type: String,
 		required: [true, "Block Name is required."]
