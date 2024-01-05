@@ -8,6 +8,8 @@ router.post("/", auth, createTrip);
 router.get("/current", auth, getDriverTrip);
 router.get("/", auth, getAllTrip);
 
-router.route("/:id").post(auth, upload.array("images"), createSubTrip);
+router.route("/:id")
+  .post(auth, upload.array("images"), createSubTrip) // create subTrip 
+  .put(auth, updateTrip);                            // update - anything
 
 module.exports = router;

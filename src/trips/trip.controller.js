@@ -11,14 +11,25 @@ const { s3UploadMulti } = require("../../utils/s3");
 exports.createTrip = catchAsyncError(async (req, res, next) => {
   console.log("createTrip", req.body);
   const userId = req.userId;
+  const { truck } = req.body;
+  if (!truck) {
+    return next(new ErrorHandler("Please select a truck", 400));
+  }
 
-  const trip = await tripModel.create({ ...req.body, driver: userId });
+  const isAvailTruck = await truckModel.findOne({ _id: truck, is_avail: true });
+  if (!isAvailTruck) {
+    return next(new ErrorHandler("The truck is already in use.", 400));
+  }
+
+  let trip = await tripModel.findOne({ driver: userId, status: 'on-going' });
   if (trip) {
-    await truckModel.findByIdAndUpdate(req.body.truck, { is_avail: false }, {
-      new: true,
-      runValidators: true,
-      validateBeforeSave: true
-    });
+    return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
+  }
+
+  trip = await tripModel.create({ ...req.body, driver: userId });
+  if (trip) {
+    isAvailTruck.is_avail = false;
+    await isAvailTruck.save();
   }
   res.status(201).json({ trip });
 });
@@ -83,7 +94,36 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
 // Update trip
 exports.updateTrip = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  const trip = await tripModel.findByIdAndUpdate(id, req.body, {
+  let updatedData = {};
+  switch (req.query.UPDATE_TRIP) {
+    case "ARRIVAL_TIME":
+      updatedData.arrival_time = Date.now();
+      break;
+
+    case "LOAD_TIME_START":
+      updatedData.load_time_start = Date.now();
+      break;
+
+    case "LOAD_TIME_END":
+      updatedData.load_time_end = Date.now();
+      break;
+
+    default:
+      // case "END_MILAGE":
+      updatedData.end_milage = req.body.end_milage;
+      break;
+
+    // default:
+    // Object.entries(req.body).forEach(([k, v]) => {
+    //   if (["arrival_time", "load_time_end", "load_time_start", "end_milage"].includes(k)) {
+    //     updatedData[k] = v;
+    //   }
+    // });
+    // break;
+  }
+
+  console.log(updatedData, Object.entries(req.body));
+  const trip = await tripModel.findByIdAndUpdate(id, updatedData, {
     new: true,
     runValidators: true,
     validateBeforeSave: true

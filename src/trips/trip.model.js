@@ -23,7 +23,7 @@ const tripSchema = new mongoose.Schema({
 	},
 	dispatch: {
 		type: String,
-		required: [true, "Dispatch info is required."]
+		// required: [true, "Dispatch info is required."]
 	},
 	start_milage: {
 		type: Number,
@@ -31,7 +31,8 @@ const tripSchema = new mongoose.Schema({
 	},
 	end_milage: { type: Number },
 	arrival_time: { type: Date },
-	load_time: { type: String },
+	load_time_start: { type: Date },
+	load_time_end: { type: Date },
 	driver: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
@@ -74,10 +75,11 @@ const subTripSchema = new mongoose.Schema({
 		required: [true, "Destination is required."],
 	},
 	arrival_time: { type: Date },
-	gross_wt: {		type: Number},
-	tare_wt: {		type: Number},
-	net_wt: {		type: Number},
-	unload_time: { type: String },
+	gross_wt: { type: Number },
+	tare_wt: { type: Number },
+	net_wt: { type: Number },
+	unload_time_start: { type: Date },
+	unload_time_end: { type: Date },
 	trip: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "Trip",
