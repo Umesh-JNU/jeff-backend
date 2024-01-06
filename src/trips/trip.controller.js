@@ -60,7 +60,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
     { path: "dest", select: "name lat long" },
   ]);
 
-  res.status(200).json({ trip, subTrip });
+  res.status(200).json({ trip, subTrip, currentTime: new Date() });
 });
 
 const lookUp = (key) => ([
