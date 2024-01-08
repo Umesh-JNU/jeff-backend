@@ -38,7 +38,7 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
 exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   const { id } = req.params;
-  
+
   let query = { driver: userId };
   if (id) {
     query = { ...query, _id: id }
@@ -60,7 +60,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
     { path: "dest", select: "name lat long" },
   ]);
 
-  res.status(200).json({ trip, subTrip, currentTime: new Date() });
+  res.status(200).json({ trip, subTrip });
 });
 
 const lookUp = (key) => ([
@@ -233,6 +233,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
     default:
       // case "END_MILAGE":
       updatedData.end_milage = req.body.end_milage;
+      updatedData.status = 'completed';
       break;
 
     // default:
@@ -245,7 +246,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
   }
 
   console.log(updatedData, Object.entries(req.body));
-  const trip = await tripModel.findByIdAndUpdate(id, updatedData, {
+  const trip = await tripModel.findOneAndUpdate({ _id: id, status: 'on-going' }, updatedData, {
     new: true,
     runValidators: true,
     validateBeforeSave: true
