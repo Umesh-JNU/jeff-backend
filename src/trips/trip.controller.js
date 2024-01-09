@@ -60,7 +60,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
     { path: "dest", select: "name lat long" },
   ]);
 
-  res.status(200).json({ trip, subTrip });
+  res.status(200).json({ trip, subTrip, end_time: trip.end_time });
 });
 
 const lookUp = (key) => ([
@@ -233,6 +233,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
     default:
       // case "END_MILAGE":
       updatedData.end_milage = req.body.end_milage;
+      updatedData.end_time = Date.now();
       updatedData.status = 'completed';
       break;
 

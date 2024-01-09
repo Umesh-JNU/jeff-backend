@@ -33,6 +33,7 @@ const tripSchema = new mongoose.Schema({
 	arrival_time: { type: Date },
 	load_time_start: { type: Date },
 	load_time_end: { type: Date },
+	end_time: { type: Date },
 	driver: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
