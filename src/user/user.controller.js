@@ -25,7 +25,9 @@ const sendOTP = async (phoneNo) => {
 };
 
 const verifyOTP = async (phoneNo, code) => {
-  return await client.verify.v2.services(SERVICE_SID).verificationChecks.create({ to: phoneNo, code: code });
+  const { status, valid } = await client.verify.v2.services(SERVICE_SID).verificationChecks.create({ to: phoneNo, code: code });
+  if (status === 'pending' && !valid) throw new ErrorHandler("Invalid OTP", 401);
+  return valid;
 }
 
 // Create a new document
@@ -52,7 +54,7 @@ exports.createUser = catchAsyncError(async (req, res, next) => {
       }
     }
 
-    const phoneNo = `+${user.country_code}${user.mobile_no}`;
+    const phoneNo = `${user.country_code}${user.mobile_no}`;
     const messageRes = await sendOTP(phoneNo);
 
     await session.commitTransaction();
@@ -75,7 +77,7 @@ exports.login = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Please enter your mobile number", 400));
 
   const user = await findUser({ mobile_no, isRegistered: true }, next);
-  const phoneNo = `+${user.country_code}${mobile_no}`;
+  const phoneNo = `${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await sendOTP(phoneNo);
 
@@ -95,10 +97,10 @@ exports.verifyOtp = catchAsyncError(async (req, res, next) => {
   }
 
   const user = await findUser({ mobile_no }, next);
-  const phoneNo = `+${user.country_code}${mobile_no}`;
+  const phoneNo = `${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await verifyOTP(phoneNo, code);
-
+  console.log({ messageRes });
   user.isRegistered = true;
   await user.save();
 
@@ -117,7 +119,7 @@ exports.resendOTP = catchAsyncError(async (req, res, next) => {
   }
 
   const user = await findUser({ mobile_no, isRegistered: true }, next);
-  const phoneNo = `+${user.country_code}${mobile_no}`;
+  const phoneNo = `${user.country_code}${mobile_no}`;
   console.log({ phoneNo, user })
   const messageRes = await sendOTP(phoneNo);
 
@@ -263,7 +265,7 @@ exports.checkOut = catchAsyncError(async (req, res, next) => {
   }
 
   const nextDate = new Date(todayLog.start).setUTCHours(24, 0, 0, 0);
-  console.log({nextDate, v: nextDate < Date.now()})
+  console.log({ nextDate, v: nextDate < Date.now() })
   if (Date.now() < nextDate) {
     todayLog.end = Date.now();
     await todayLog.save();
