@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const millSchema = new mongoose.Schema({
-	mill_id: {
+	id: {
 		type: String,
 		required: [true, "Mill ID is required."]
 	}

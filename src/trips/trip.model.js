@@ -48,7 +48,7 @@ const tripSchema = new mongoose.Schema({
 
 const subTripSchema = new mongoose.Schema({
 	docs: [{ type: String }],
-	mill_id: {
+	mill: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "Mill",
 		required: [true, "Mill is required for a trip."],

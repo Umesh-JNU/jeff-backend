@@ -58,10 +58,62 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const subTrip = await subTripModel.findOne({ trip: trip._id }).populate([
     { path: "source", select: "name lat long" },
     { path: "dest", select: "name lat long" },
+    { path: "mill", select: "id" }
   ]);
 
   res.status(200).json({ trip, subTrip, end_time: trip.end_time });
 });
+
+// Update trip
+exports.updateTrip = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  let updatedData = {};
+  switch (req.query.UPDATE_TRIP) {
+    case "ARRIVAL_TIME":
+      updatedData.arrival_time = Date.now();
+      break;
+
+    case "LOAD_TIME_START":
+      updatedData.load_time_start = Date.now();
+      break;
+
+    case "LOAD_TIME_END":
+      updatedData.load_time_end = Date.now();
+      break;
+
+    default:
+      // case "END_MILAGE":
+      updatedData.end_milage = req.body.end_milage;
+      updatedData.end_time = Date.now();
+      updatedData.status = 'completed';
+      break;
+
+    // default:
+    // Object.entries(req.body).forEach(([k, v]) => {
+    //   if (["arrival_time", "load_time_end", "load_time_start", "end_milage"].includes(k)) {
+    //     updatedData[k] = v;
+    //   }
+    // });
+    // break;
+  }
+
+  console.log(updatedData, Object.entries(req.body));
+  const trip = await tripModel.findOneAndUpdate({ _id: id, status: 'on-going' }, updatedData, {
+    new: true,
+    runValidators: true,
+    validateBeforeSave: true
+  });
+  if (!trip) {
+    return next(new ErrorHandler("Trip not found.", 404));
+  }
+
+  if (!req.query.UPDATE_TRIP) {
+    await truckModel.findByIdAndUpdate(trip.truck, { is_avail: true });
+  }
+
+  res.status(200).json({ trip });
+});
+
 
 const lookUp = (key) => ([
   {
@@ -72,7 +124,7 @@ const lookUp = (key) => ([
       as: key
     }
   },
-  { $unwind: `$${key}` }
+  { $unwind: { path: `$${key}`, preserveNullAndEmptyArrays: true } }
 ]);
 
 // Trip History
@@ -91,7 +143,7 @@ exports.getTripHistory = catchAsyncError(async (req, res, next) => {
         as: "sub_trip"
       }
     },
-    { $unwind: "$sub_trip" },
+    { $unwind: { path: "$sub_trip", preserveNullAndEmptyArrays: true } },
     ...lookUp("sub_trip.dest")
   ];
 
@@ -178,85 +230,85 @@ exports.getTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Invalid Trip ID", 400));
   }
 
-  const trip = await tripModel.findById(id);
+  const trip = await tripModel.findById(id).populate([
+    { path: "source", select: "name lat long" },
+    { path: "dest", select: "name lat long" },
+    { path: "truck", select: "truck_id plate_no name" },
+    { path: "driver", select: "firstname lastname mobile_no profile_url" }
+  ]);
   if (!trip) {
-    return next(new ErrorHandler("Trip not found.", 404));
+    return next(new ErrorHandler("Trip Not Found", 404));
   }
 
-  res.status(200).json({ trip });
+  const subTrip = await subTripModel.findOne({ trip: trip._id }).populate([
+    { path: "source", select: "name lat long" },
+    { path: "dest", select: "name lat long" },
+    { path: "mill", select: "id" }
+  ]);
+
+  res.status(200).json({ trip, subTrip });
 });
 
 // Get all documents
 exports.getAllTrip = catchAsyncError(async (req, res, next) => {
   console.log("getAllTrip", req.query);
 
-  const apiFeature = new APIFeatures(
-    tripModel.find().sort({ createdAt: -1 }).populate([
-      { path: "truck", select: "truck_id plate_no name" },
-      { path: "source", select: "name lat long" },
-      { path: "dest", select: "name lat long" },
-      { path: "driver", select: "firstname lastname mobile_no" },
-    ]),
-    req.query
-  ).search("trip_id");
+  const { keyword, currentPage, resultPerPage } = req.query;
 
-  let trips = await apiFeature.query;
-  console.log("Trips", trips);
-  let tripCount = trips.length;
-  if (req.query.resultPerPage && req.query.currentPage) {
-    apiFeature.pagination();
+  // let match = {};
+  // if (keyword) {
+  //   match = { name: { $regex: keyword, $options: "i" } };
+  // }
 
-    console.log("tripCount", tripCount);
-    trips = await apiFeature.query.clone();
+  const queryOptions = [];
+  if (currentPage && resultPerPage) {
+    const r = parseInt(resultPerPage);
+    const c = parseInt(currentPage);
+
+    const skip = r * (c - 1);
+    queryOptions.push({ $skip: skip });
+    queryOptions.push({ $limit: r });
   }
-  console.log("trips", trips);
+
+  const aggregateQry = [
+    {
+      $lookup: {
+        foreignField: "_id",
+        localField: "driver",
+        from: "users",
+        as: "driver"
+      }
+    },
+    { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        foreignField: "_id",
+        localField: "truck",
+        from: "trucks",
+        as: "truck"
+      }
+    },
+    { $unwind: { path: "$truck", preserveNullAndEmptyArrays: true } },
+    ...lookUp("source"),
+    {
+      $lookup: {
+        foreignField: "trip",
+        localField: "_id",
+        from: "subtrips",
+        as: "sub_trip"
+      }
+    },
+    { $unwind: { path: "$sub_trip", preserveNullAndEmptyArrays: true } },
+    ...lookUp("sub_trip.dest"),
+    { $sort: { "createdAt": -1 } },
+    ...queryOptions
+  ];
+
+  // return res.json({aggregateQry})
+  const trips = await tripModel.aggregate(aggregateQry);
+
+  const tripCount = trips.length;
   res.status(200).json({ trips, tripCount });
-});
-
-// Update trip
-exports.updateTrip = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  let updatedData = {};
-  switch (req.query.UPDATE_TRIP) {
-    case "ARRIVAL_TIME":
-      updatedData.arrival_time = Date.now();
-      break;
-
-    case "LOAD_TIME_START":
-      updatedData.load_time_start = Date.now();
-      break;
-
-    case "LOAD_TIME_END":
-      updatedData.load_time_end = Date.now();
-      break;
-
-    default:
-      // case "END_MILAGE":
-      updatedData.end_milage = req.body.end_milage;
-      updatedData.end_time = Date.now();
-      updatedData.status = 'completed';
-      break;
-
-    // default:
-    // Object.entries(req.body).forEach(([k, v]) => {
-    //   if (["arrival_time", "load_time_end", "load_time_start", "end_milage"].includes(k)) {
-    //     updatedData[k] = v;
-    //   }
-    // });
-    // break;
-  }
-
-  console.log(updatedData, Object.entries(req.body));
-  const trip = await tripModel.findOneAndUpdate({ _id: id, status: 'on-going' }, updatedData, {
-    new: true,
-    runValidators: true,
-    validateBeforeSave: true
-  });
-  if (!trip) {
-    return next(new ErrorHandler("Trip not found.", 404));
-  }
-
-  res.status(200).json({ trip });
 });
 
 // Delete a document by ID
@@ -267,6 +319,18 @@ exports.deleteTrip = catchAsyncError(async (req, res, next) => {
   if (!trip)
     return next(new ErrorHandler("Trip not found", 404));
 
+  // first check if truck is used in any on-going trip (different with this trip),
+  // if so, then do nothing
+  // other make is_avail true
+  const tripWithTruck = await tripModel.findOne({
+    truck: trip.truck,
+    status: 'on-going',
+    _id: { $ne: trip._id }
+  });
+  if (!tripWithTruck) {
+    await truckModel.findByIdAndUpdate(trip.truck, { is_avail: true });
+  }
+  await subTripModel.deleteOne({ trip: id });
   await trip.deleteOne();
 
   res.status(200).json({

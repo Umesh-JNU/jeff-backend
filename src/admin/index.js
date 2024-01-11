@@ -18,6 +18,14 @@ router.route("/user/:id")
   .put(auth, isAdmin, updateUser)
   .delete(auth, isAdmin, deleteUser);
 
+// ------------------------------------ TRIP ---------------------------------
+const { getAllTrip, getTrip, deleteTrip } = require("../trips");
+
+router.get("/trip", auth, isAdmin, getAllTrip);
+router.route("/trip/:id")
+  .get(auth, isAdmin, getTrip)
+  .delete(auth, isAdmin, deleteTrip);
+
 // ------------------------------------ MESSAGE ---------------------------------
 const { getAllEnquiry, getEnquiry, deleteEnquiry } = require("../enquiry");
 
