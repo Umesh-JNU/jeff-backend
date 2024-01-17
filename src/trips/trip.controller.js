@@ -132,7 +132,10 @@ exports.getTripHistory = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   const aggregateQry = [
     {
-      $match: { driver: new mongoose.Types.ObjectId(userId) }
+      $match: { 
+        driver: new mongoose.Types.ObjectId(userId),
+        status: "completed"
+      }
     },
     ...lookUp("source"),
     {

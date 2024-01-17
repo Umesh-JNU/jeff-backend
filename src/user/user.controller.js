@@ -25,6 +25,7 @@ const sendOTP = async (phoneNo) => {
 };
 
 const verifyOTP = async (phoneNo, code) => {
+  return res.send(await client.outgoingCallerIds.list());
   const { status, valid } = await client.verify.v2.services(SERVICE_SID).verificationChecks.create({ to: phoneNo, code: code });
   if (status === 'pending' && !valid) throw new ErrorHandler("Invalid OTP", 401);
   return valid;
@@ -235,40 +236,59 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
 });
 
 // --------------------------------- USER LOG ---------------------------------
+// exports.checkIn = catchAsyncError(async (req, res, next) => {
+//   const userId = req.userId;
+
+//   const currentTime = Date.now();
+//   const todayDate = new Date().setHours(0, 0, 0, 0);
+//   let todayLog = await logModel.findOne({
+//     user: userId,
+//     start: { $lte: currentTime, $gt: todayDate }
+//   });
+
+//   if (!todayLog) {
+//     todayLog = await logModel.create({ user: userId, start: Date.now() });
+//   }
+//   res.status(200).json({ todayLog });
+// });
+
+// exports.checkOut = catchAsyncError(async (req, res, next) => {
+//   const userId = req.userId;
+//   const { logId } = req.body;
+
+//   let todayLog = await logModel.findOne({
+//     user: userId,
+//     _id: logId
+//   });
+
+//   if (!todayLog) {
+//     return next(new ErrorHandler("You haven't checked in.", 400));
+//   }
+
+//   const nextDate = new Date(todayLog.start).setUTCHours(24, 0, 0, 0);
+//   console.log({ nextDate, v: nextDate < Date.now() })
+//   if (Date.now() < nextDate) {
+//     todayLog.end = Date.now();
+//     await todayLog.save();
+//   }
+//   res.status(200).json({ todayLog });
+// });
+
 exports.checkIn = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-
-  const currentTime = Date.now();
-  const todayDate = new Date().setHours(0, 0, 0, 0);
-  let todayLog = await logModel.findOne({
-    user: userId,
-    start: { $lte: currentTime, $gt: todayDate }
-  });
-
-  if (!todayLog) {
-    todayLog = await logModel.create({ user: userId, start: Date.now() });
-  }
-  res.status(200).json({ todayLog });
+  await logModel.create({ user: userId, start: Date.now() });
+  res.status(200).json({ success: true });
 });
 
 exports.checkOut = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-  const { logId } = req.body;
-
-  let todayLog = await logModel.findOne({
-    user: userId,
-    _id: logId
-  });
-
-  if (!todayLog) {
+  const log = await logModel.findOne({ user: userId }).sort({ createdAt: -1 });
+  if (!log) {
     return next(new ErrorHandler("You haven't checked in.", 400));
   }
 
-  const nextDate = new Date(todayLog.start).setUTCHours(24, 0, 0, 0);
-  console.log({ nextDate, v: nextDate < Date.now() })
-  if (Date.now() < nextDate) {
-    todayLog.end = Date.now();
-    await todayLog.save();
-  }
-  res.status(200).json({ todayLog });
+  log.end = Date.now();
+  await log.save();
+
+  res.status(200).json({ success: true });
 });
