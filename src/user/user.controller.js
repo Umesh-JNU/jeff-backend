@@ -25,7 +25,6 @@ const sendOTP = async (phoneNo) => {
 };
 
 const verifyOTP = async (phoneNo, code) => {
-  return res.send(await client.outgoingCallerIds.list());
   const { status, valid } = await client.verify.v2.services(SERVICE_SID).verificationChecks.create({ to: phoneNo, code: code });
   if (status === 'pending' && !valid) throw new ErrorHandler("Invalid OTP", 401);
   return valid;
