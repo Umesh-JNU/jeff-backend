@@ -69,7 +69,7 @@ exports.deleteLocation = catchAsyncError(async (req, res, next) => {
   if (!location)
     return next(new ErrorHandler("Location not found", 404));
 
-  await location.remove();
+  await location.deleteOne();
 
   res.status(200).json({
     message: "Location Deleted successfully.",

@@ -56,6 +56,13 @@ router.route("/mill/:id")
   .put(auth, isAdmin, updateMill)
   .delete(auth, isAdmin, deleteMill);
 
+// ------------------------------------ LOCATION ---------------------------------
+const { updateLocation, deleteLocation } = require("../location");
+
+router.route("/location/:id")
+  .put(auth, isAdmin, updateLocation)
+  .delete(auth, isAdmin, deleteLocation);
+
 // ------------------------------------ CONTENT ---------------------------------
 const { createContent, getContent, updateContent } = require("../content");
 

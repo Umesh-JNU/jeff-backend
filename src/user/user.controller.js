@@ -281,7 +281,9 @@ exports.checkIn = catchAsyncError(async (req, res, next) => {
 
 exports.checkOut = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-  const log = await logModel.findOne({ user: userId }).sort({ createdAt: -1 });
+  const log = await logModel.findOne({ user: userId, end: null }).sort({ createdAt: -1 });
+
+  console.log({ log });
   if (!log) {
     return next(new ErrorHandler("You haven't checked in.", 400));
   }
