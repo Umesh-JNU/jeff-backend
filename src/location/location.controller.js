@@ -3,6 +3,7 @@ const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
 const locationModel = require("./location.model");
 const { isValidObjectId } = require("mongoose");
+const { tripModel, subTripModel } = require("../trips/trip.model");
 
 // Create a new document
 exports.createLocation = catchAsyncError(async (req, res, next) => {
@@ -68,6 +69,15 @@ exports.deleteLocation = catchAsyncError(async (req, res, next) => {
 
   if (!location)
     return next(new ErrorHandler("Location not found", 404));
+
+  const query = {
+    $or: [{ source: id }, { dest: id }]
+  };
+  const isAnyTrip = await tripModel.findOne(query);
+  const isAnySubTrip = await subTripModel.findOne(query);
+  if (isAnyTrip || isAnySubTrip) {
+    return next(new ErrorHandler("This location can't be deleted due to some trip's location.", 400));
+  }
 
   await location.deleteOne();
 

@@ -15,7 +15,7 @@ exports.createEnquiry = catchAsyncError(async (req, res, next) => {
     req.body.image = location;
   }
 
-  const enquiry = await enquiryModel.create({...req.body, user: userId});
+  const enquiry = await enquiryModel.create({ ...req.body, user: userId });
   res.status(201).json({ enquiry });
 });
 
@@ -23,22 +23,49 @@ exports.createEnquiry = catchAsyncError(async (req, res, next) => {
 exports.getAllEnquiry = catchAsyncError(async (req, res, next) => {
   console.log("all enquiry", req.query);
 
-  const apiFeature = new APIFeatures(
-    enquiryModel.find().sort({ createdAt: -1 }).populate("user", ["firstname", "lastname", "mobile_no"]),
-    req.query
-  ).search("email");
+  console.log("getAllTrip", req.query);
 
-  let messages = await apiFeature.query;
-  console.log("messages", messages);
-  let messageCount = messages.length;
-  if (req.query.resultPerPage && req.query.currentPage) {
-    apiFeature.pagination();
+  const { keyword, currentPage, resultPerPage } = req.query;
+  let match = [];
+  if (keyword) {
+    const regexQry = {
+      $regex: keyword,
+      $options: "i",
+    };
 
-    console.log("messageCount", messageCount);
-    messages = await apiFeature.query.clone();
+    match = [{
+      $match: {
+        $or: [
+          { message: regexQry },
+          { ["user.firstname"]: regexQry },
+          { ["user.lastname"]: regexQry },
+        ]
+      }
+    }];
   }
-  console.log("messages", messages);
-  res.status(200).json({ messages, messageCount });
+
+  const limit = parseInt(resultPerPage);
+  const c = parseInt(currentPage);
+  const skip = limit * (c - 1);
+
+  const messages = await enquiryModel.aggregate([
+    {
+      $lookup: {
+        foreignField: "_id",
+        localField: "user",
+        from: "users",
+        as: "user"
+      }
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    ...match,
+    { $sort: { "createdAt": -1 } },
+  ]);
+
+
+  // let messageCount = await enquiryModel.count();
+  let messageCount = messages.length;
+  res.status(200).json({ messages: messages.slice(skip, skip+limit), messageCount });
 });
 
 // Get a single document by ID

@@ -2,6 +2,7 @@ const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
 const { tripModel, subTripModel } = require("./trip.model");
+const { userModel } = require("../user/user.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const { v4: uuid } = require("uuid");
 const truckModel = require("../trucks/truck.model");
@@ -11,6 +12,11 @@ const { s3UploadMulti } = require("../../utils/s3");
 exports.createTrip = catchAsyncError(async (req, res, next) => {
   console.log("createTrip", req.body);
   const userId = req.userId;
+  const user = await userModel.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("Driver not found.", 404));
+  }
+
   const { truck } = req.body;
   if (!truck) {
     return next(new ErrorHandler("Please select a truck", 400));
@@ -26,7 +32,12 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
   }
 
-  trip = await tripModel.create({ ...req.body, driver: userId });
+  trip = await tripModel.create({
+    ...req.body,
+    driver: userId,
+    driver_name: `${user.firstname} ${user.lastname}`,
+    driver_mob_no: `${user.country_code}-${user.mobile_no}`
+  });
   if (trip) {
     isAvailTruck.is_avail = false;
     await isAvailTruck.save();
@@ -132,7 +143,7 @@ exports.getTripHistory = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   const aggregateQry = [
     {
-      $match: { 
+      $match: {
         driver: new mongoose.Types.ObjectId(userId),
         status: "completed"
       }
@@ -233,11 +244,11 @@ exports.getTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Invalid Trip ID", 400));
   }
 
-  const trip = await tripModel.findById(id).populate([
+  const trip = await tripModel.findById(id).select("+driver_mob_no +driver_name").populate([
     { path: "source", select: "name lat long" },
     { path: "dest", select: "name lat long" },
     { path: "truck", select: "truck_id plate_no name" },
-    { path: "driver", select: "firstname lastname mobile_no profile_url" }
+    // { path: "driver", select: "firstname lastname mobile_no profile_url" }
   ]);
   if (!trip) {
     return next(new ErrorHandler("Trip Not Found", 404));
@@ -256,33 +267,19 @@ exports.getTrip = catchAsyncError(async (req, res, next) => {
 exports.getAllTrip = catchAsyncError(async (req, res, next) => {
   console.log("getAllTrip", req.query);
 
-  const { keyword, currentPage, resultPerPage } = req.query;
+  const { status, keyword, currentPage, resultPerPage } = req.query;
 
   // let match = {};
   // if (keyword) {
   //   match = { name: { $regex: keyword, $options: "i" } };
   // }
 
-  const queryOptions = [];
-  if (currentPage && resultPerPage) {
-    const r = parseInt(resultPerPage);
-    const c = parseInt(currentPage);
-
-    const skip = r * (c - 1);
-    queryOptions.push({ $skip: skip });
-    queryOptions.push({ $limit: r });
-  }
+  const limit = parseInt(resultPerPage);
+  const c = parseInt(currentPage);
+  const skip = limit * (c - 1);
 
   const aggregateQry = [
-    {
-      $lookup: {
-        foreignField: "_id",
-        localField: "driver",
-        from: "users",
-        as: "driver"
-      }
-    },
-    { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+    { $match: { status: status } },
     {
       $lookup: {
         foreignField: "_id",
@@ -293,6 +290,7 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
     },
     { $unwind: { path: "$truck", preserveNullAndEmptyArrays: true } },
     ...lookUp("source"),
+    ...lookUp("dest"),
     {
       $lookup: {
         foreignField: "trip",
@@ -302,16 +300,16 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
       }
     },
     { $unwind: { path: "$sub_trip", preserveNullAndEmptyArrays: true } },
+    ...lookUp("sub_trip.source"),
     ...lookUp("sub_trip.dest"),
     { $sort: { "createdAt": -1 } },
-    ...queryOptions
   ];
 
   // return res.json({aggregateQry})
   const trips = await tripModel.aggregate(aggregateQry);
 
   const tripCount = trips.length;
-  res.status(200).json({ trips, tripCount });
+  res.status(200).json({ trips: trips.slice(skip, skip + limit), tripCount });
 });
 
 // Delete a document by ID

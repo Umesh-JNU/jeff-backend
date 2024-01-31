@@ -35,7 +35,7 @@ exports.getAllMill = catchAsyncError(async (req, res, next) => {
   const apiFeature = new APIFeatures(
     millModel.find().sort({ createdAt: -1 }),
     req.query
-  ).search("mill_id");
+  ).search("id");
 
   let mills = await apiFeature.query;
   console.log("mills", mills);

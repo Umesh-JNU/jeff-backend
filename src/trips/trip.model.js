@@ -39,6 +39,16 @@ const tripSchema = new mongoose.Schema({
 		ref: "User",
 		required: [true, "Driver is required."]
 	},
+	driver_name: {
+		type: String,
+		required: [true, "Driver's Name is required."],
+		select: false
+	},
+	driver_mob_no: {
+		type: String,
+		required: [true, "Driver's Mobile No. is required."],
+		select: false
+	},
 	status: {
 		type: String,
 		default: "on-going",
