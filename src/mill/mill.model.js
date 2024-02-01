@@ -1,12 +1,19 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const millSchema = new mongoose.Schema({
-	id: {
-		type: String,
-		required: [true, "Mill ID is required."]
-	}
-}, { timestamps: true });
+const millSchema = new mongoose.Schema(
+  {
+    mill_name: {
+      type: String,
+      required: [true, "Mill name is required"],
+    },
+    address: {
+      type: mongoose.Types.ObjectId,
+      required: [true, "Address is required"],
+    },
+  },
+  { timestamps: true }
+);
 
-const millModel = mongoose.model('Mill', millSchema);
+const millModel = mongoose.model("Mill", millSchema);
 
 module.exports = millModel;
