@@ -32,12 +32,7 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
   }
 
-  trip = await tripModel.create({
-    ...req.body,
-    driver: userId,
-    driver_name: `${user.firstname} ${user.lastname}`,
-    driver_mob_no: `${user.country_code}-${user.mobile_no}`
-  });
+  trip = await tripModel.create({ ...req.body, driver: userId });
   if (trip) {
     isAvailTruck.is_avail = false;
     await isAvailTruck.save();
@@ -58,21 +53,37 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   }
 
   const trip = await tripModel.findOne(query).populate([
-    { path: "source", select: "name lat long" },
-    { path: "dest", select: "name lat long" },
+    { path: "source_loc", select: "name lat long" },
+    { path: "load_loc", select: "name lat long" },
+    { path: "unload_loc", select: "name lat long" },
+    { path: "end_loc", select: "name lat long" },
     { path: "truck", select: "truck_id plate_no name" }
   ]);
   if (!trip) {
     return next(new ErrorHandler("No On-going trip", 400));
   }
 
-  const subTrip = await subTripModel.findOne({ trip: trip._id }).populate([
-    { path: "source", select: "name lat long" },
-    { path: "dest", select: "name lat long" },
-    { path: "mill", select: "id" }
-  ]);
+  res.status(200).json({ trip, end_time: trip.end_time });
+});
 
-  res.status(200).json({ trip, subTrip, end_time: trip.end_time });
+// Shift Change 
+exports.shiftChange = catchAsyncError(async (req, res, next) => {
+  console.log("shiftChange", req.body);
+  const userId = req.userId;
+  const { trip_id } = req.body;
+
+  console.log({ trip_id, userId })
+  let trip = await tripModel.findOne({ driver: userId, status: 'on-going' });
+  if (trip) {
+    return next(new ErrorHandler("Your current trip is not completed. Can't overtake another one.", 400));
+  }
+
+  trip = await tripModel.findByIdAndUpdate(trip_id, { $push: { driver: userId } }, {
+    new: true,
+    runValidators: true,
+    validateBeforeSave: true,
+  });
+  res.status(200).json({ trip });
 });
 
 // Update trip

@@ -1,104 +1,76 @@
 const mongoose = require('mongoose');
 
 const tripSchema = new mongoose.Schema({
-	desc: {
-		type: String,
-		maxLength: [250, "Trip Description should have maximum 250 characters"],
-		required: [true, "Trip description is required."]
-	},
-	truck: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "Truck",
-		required: [true, "Truck is required for a trip."],
-	},
-	source: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "Location",
-		required: [true, "Source is required."],
-	},
-	dest: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "Location",
-		required: [true, "Destination is required."],
-	},
-	dispatch: {
-		type: String,
-		// required: [true, "Dispatch info is required."]
-	},
-	start_milage: {
-		type: Number,
-		required: [true, "Start Milage is Required."],
-	},
-	end_milage: { type: Number },
-	arrival_time: { type: Date },
-	load_time_start: { type: Date },
-	load_time_end: { type: Date },
-	end_time: { type: Date },
 	driver: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "User",
-		required: [true, "Driver is required."]
-	},
-	driver_name: {
-		type: String,
-		required: [true, "Driver's Name is required."],
-		select: false
-	},
-	driver_mob_no: {
-		type: String,
-		required: [true, "Driver's Mobile No. is required."],
+		type: [{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "User",
+			required: [true, "Driver is required."]
+		}],
+		required: true,
 		select: false
 	},
 	status: {
 		type: String,
 		default: "on-going",
 		enum: ["on-going", "completed"]
-	}
-}, { timestamps: true });
+	},
 
-const subTripSchema = new mongoose.Schema({
-	docs: [{ type: String }],
-	mill: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "Mill",
-		required: [true, "Mill is required for a trip."],
-	},
-	prod_detail: {
-		type: String,
-		required: [true, "Product detail is required."]
-	},
-	slip_id: {
-		type: String,
-		required: [true, "Slip ID is required."]
-	},
-	block_name: {
-		type: String,
-		required: [true, "Block Name is required."]
-	},
-	source: {
+	source_loc: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "Location",
-		required: [true, "Source is required."],
+		required: [true, "Source location is required."],
 	},
-	dest: {
+	load_loc: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "Location",
-		required: [true, "Destination is required."],
+		required: [true, "Load location is required."],
 	},
-	arrival_time: { type: Date },
+	unload_loc: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Location"
+	},
+	end_loc: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Location"
+	},
+
+	truck: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Truck",
+		required: [true, "Truck is required for a trip."],
+	},
+	start_milage: {
+		type: Number,
+		required: [true, "Start Milage is Required."],
+	},
+	end_milage: { type: Number },
+	dispatch: {
+		type: String,
+		// required: [true, "Dispatch info is required."]
+	},
+
+	load_loc_arr_time: { type: Date },
+	load_time_start: { type: Date },
+	load_time_end: { type: Date },
+
+	unload_loc_arr_time: { type: Date },
+	unload_time_start: { type: Date },
+	unload_time_end: { type: Date },
+
+	prod_detail: { type: String },
 	gross_wt: { type: Number },
 	tare_wt: { type: Number },
 	net_wt: { type: Number },
-	unload_time_start: { type: Date },
-	unload_time_end: { type: Date },
-	trip: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: "Trip",
-		required: [true, "Trip Reference is required."]
-	},
+
+	docs: [{ type: String }],
+	slip_id: { type: String },
+	block_no: { type: String },
+
+	end_time: { type: Date },
 }, { timestamps: true });
 
-const tripModel = mongoose.model('Trip', tripSchema);
-const subTripModel = mongoose.model('SubTrip', subTripSchema);
 
-module.exports = { tripModel, subTripModel };
+const tripModel = mongoose.model('Trip', tripSchema);
+
+module.exports = { tripModel };
