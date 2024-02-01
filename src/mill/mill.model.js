@@ -9,6 +9,7 @@ const millSchema = new mongoose.Schema(
     address: {
       type: mongoose.Types.ObjectId,
       required: [true, "Address is required"],
+      ref: "Location",
     },
   },
   { timestamps: true }

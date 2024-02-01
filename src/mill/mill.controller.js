@@ -22,7 +22,8 @@ exports.getMill = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Invalid mill ID", 400));
   }
 
-  const mill = await millModel.findById(id);
+  const mill = await millModel.findById(id).populate("address");
+  console.log(mill);
   if (!mill) {
     return next(new ErrorHandler("Mill not found.", 404));
   }
@@ -35,7 +36,7 @@ exports.getAllMill = catchAsyncError(async (req, res, next) => {
   console.log("getAllMill", req.query);
 
   const apiFeature = new APIFeatures(
-    millModel.find().sort({ createdAt: -1 }),
+    millModel.find().sort({ createdAt: -1 }).populate("address"),
     req.query
   ).search("id");
 
@@ -55,13 +56,20 @@ exports.getAllMill = catchAsyncError(async (req, res, next) => {
 // Update mill
 exports.updateMill = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  const mill = await millModel.findByIdAndUpdate(id, req.body, {
-    new: true,
-    runValidators: true,
-    validateBeforeSave: true,
-  });
-
-  res.status(200).json({ mill });
+  const { lat, long, name, mill_name } = req.body;
+  const millToUpdate = await millModel.findById(id).populate("address");
+  const locationexists = await locationModel.findOne({ name });
+  if (locationexists) {
+    millToUpdate.address = locationexists;
+    await millToUpdate.save();
+  } else {
+    mill_name && (millToUpdate.mill_name = mill_name);
+    name && (millToUpdate.address.name = name);
+    lat && (millToUpdate.address.lat = parseFloat(lat));
+    long && (millToUpdate.address.long = parseFloat(long));
+    await millToUpdate.save();
+  }
+  res.status(200).json({ millToUpdate });
 });
 
 // Delete a document by ID
