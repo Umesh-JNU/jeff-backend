@@ -1,15 +1,17 @@
 const mongoose = require('mongoose');
 
 const tripSchema = new mongoose.Schema({
-	driver: {
-		type: [{
+	driver: [{
+		dId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: "User",
-			required: [true, "Driver is required."]
-		}],
-		required: true,
-		select: false
-	},
+			required: [true, "Driver is required."],
+		},
+		time: {
+			type: mongoose.Schema.Types.Date,
+			required: [true, "Shift Time is required"]
+		}
+	}],
 	status: {
 		type: String,
 		default: "on-going",

@@ -27,12 +27,15 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("The truck is already in use.", 400));
   }
 
-  let trip = await tripModel.findOne({ driver: userId, status: 'on-going' });
+  let trip = await tripModel.findOne({ "driver.dId": userId, status: 'on-going' });
   if (trip) {
     return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
   }
 
-  trip = await tripModel.create({ ...req.body, driver: userId });
+  trip = await tripModel.create({
+    ...req.body,
+    driver: [{ dId: userId, time: Date.now() }]
+  });
   if (trip) {
     isAvailTruck.is_avail = false;
     await isAvailTruck.save();
@@ -45,7 +48,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   const { id } = req.params;
 
-  let query = { driver: userId };
+  let query = { "driver.dId": userId };
   if (id) {
     query = { ...query, _id: id }
   } else {
@@ -69,20 +72,27 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
 // Shift Change 
 exports.shiftChange = catchAsyncError(async (req, res, next) => {
   console.log("shiftChange", req.body);
-  const userId = req.userId;
-  const { trip_id } = req.body;
+  // const userId = req.userId;
+  // const { trip_id } = req.body;
+  const { trip_id, userId } = req.body;
 
   console.log({ trip_id, userId })
-  let trip = await tripModel.findOne({ driver: userId, status: 'on-going' });
+  let trip = await tripModel.findOne({ 'driver.dId': userId, status: 'on-going' });
   if (trip) {
     return next(new ErrorHandler("Your current trip is not completed. Can't overtake another one.", 400));
   }
 
-  trip = await tripModel.findByIdAndUpdate(trip_id, { $push: { driver: userId } }, {
+  trip = await tripModel.findByIdAndUpdate(trip_id, { $push: { driver: { dId: userId, time: Date.now() } } }, {
     new: true,
     runValidators: true,
     validateBeforeSave: true,
-  });
+  }).populate([
+    { path: "source_loc", select: "name lat long" },
+    { path: "load_loc", select: "name lat long" },
+    { path: "unload_loc", select: "name lat long" },
+    { path: "end_loc", select: "name lat long" },
+    { path: "truck", select: "truck_id plate_no name" }
+  ]);
   res.status(200).json({ trip });
 });
 
@@ -255,23 +265,19 @@ exports.getTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Invalid Trip ID", 400));
   }
 
-  const trip = await tripModel.findById(id).select("+driver_mob_no +driver_name").populate([
-    { path: "source", select: "name lat long" },
-    { path: "dest", select: "name lat long" },
-    { path: "truck", select: "truck_id plate_no name" },
-    // { path: "driver", select: "firstname lastname mobile_no profile_url" }
+  const trip = await tripModel.findById(id).select("+driver").populate([
+    { path: "source_loc", select: "name lat long" },
+    { path: "load_loc", select: "name lat long" },
+    { path: "unload_loc", select: "name lat long" },
+    { path: "end_loc", select: "name lat long" },
+    { path: "driver", select: "firstname lastname mobile_no profile_url" },
+    { path: "truck", select: "truck_id plate_no name" }
   ]);
   if (!trip) {
     return next(new ErrorHandler("Trip Not Found", 404));
   }
 
-  const subTrip = await subTripModel.findOne({ trip: trip._id }).populate([
-    { path: "source", select: "name lat long" },
-    { path: "dest", select: "name lat long" },
-    { path: "mill", select: "id" }
-  ]);
-
-  res.status(200).json({ trip, subTrip });
+  res.status(200).json({ trip });
 });
 
 // Get all documents
@@ -300,27 +306,24 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
       }
     },
     { $unwind: { path: "$truck", preserveNullAndEmptyArrays: true } },
-    ...lookUp("source"),
-    ...lookUp("dest"),
-    {
-      $lookup: {
-        foreignField: "trip",
-        localField: "_id",
-        from: "subtrips",
-        as: "sub_trip"
-      }
-    },
-    { $unwind: { path: "$sub_trip", preserveNullAndEmptyArrays: true } },
-    ...lookUp("sub_trip.source"),
-    ...lookUp("sub_trip.dest"),
+    ...lookUp("source_loc"),
+    ...lookUp("load_loc"),
+    ...lookUp("unload_loc"),
+    ...lookUp("end_loc"),
     { $sort: { "createdAt": -1 } },
+    {
+      $facet: {
+        results: [{ $skip: skip }, { $limit: limit }],
+        count: [{ $count: "tripCount" }]
+      }
+    }
   ];
 
   // return res.json({aggregateQry})
-  const trips = await tripModel.aggregate(aggregateQry);
+  let [{ results, count: [count] }] = await tripModel.aggregate(aggregateQry);
 
-  const tripCount = trips.length;
-  res.status(200).json({ trips: trips.slice(skip, skip + limit), tripCount });
+  if (!count) count = { tripCount: 0 };
+  res.status(200).json({ trips: results, ...count });
 });
 
 // Delete a document by ID

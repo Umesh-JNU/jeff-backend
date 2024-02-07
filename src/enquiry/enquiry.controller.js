@@ -48,7 +48,7 @@ exports.getAllEnquiry = catchAsyncError(async (req, res, next) => {
   const c = parseInt(currentPage);
   const skip = limit * (c - 1);
 
-  const messages = await enquiryModel.aggregate([
+  let [{ results, count: [count] }] = await enquiryModel.aggregate([
     {
       $lookup: {
         foreignField: "_id",
@@ -60,12 +60,16 @@ exports.getAllEnquiry = catchAsyncError(async (req, res, next) => {
     { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
     ...match,
     { $sort: { "createdAt": -1 } },
+    {
+      $facet: {
+        results: [{ $skip: skip }, { $limit: limit }],
+        count: [{ $count: "messageCount" }]
+      }
+    }
   ]);
 
-
-  // let messageCount = await enquiryModel.count();
-  let messageCount = messages.length;
-  res.status(200).json({ messages: messages.slice(skip, skip+limit), messageCount });
+  if (!count) count = { messageCount: 0 };
+  res.status(200).json({ messages: results, ...count });
 });
 
 // Get a single document by ID
