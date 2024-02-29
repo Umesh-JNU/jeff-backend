@@ -11,9 +11,6 @@ router.route("/")
 router.put("/shift-change", auth, shiftChange);
 router.get("/current", auth, getDriverTrip);
 
-router.route("/:id/sub/:subId")
-  .put(auth, updateSubTrip);
-
 router.route("/:id")
   .put(auth, upload.array("docs"), updateTrip) // update - anything
   .get(auth, getDriverTrip);

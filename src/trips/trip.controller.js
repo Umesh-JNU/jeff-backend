@@ -214,13 +214,22 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
 const lookUp = (key) => ([
   {
     $lookup: {
+      from: "locations",
       foreignField: "_id",
       localField: key,
-      from: "locations",
-      as: key
+      // as: `_${key}`
+      as: `${key}`
     }
   },
-  { $unwind: { path: `$${key}`, preserveNullAndEmptyArrays: true } }
+  { $unwind: { path: `$${key}`, preserveNullAndEmptyArrays: true } },
+  {
+    $project: {
+      [`${key}.createdAt`]: 0,
+      [`${key}.updatedAt`]: 0,
+      [`${key}._id`]: 0,
+      [`${key}.__v`]: 0,
+    }
+  }
 ]);
 
 // Trip History
@@ -229,75 +238,38 @@ exports.getTripHistory = catchAsyncError(async (req, res, next) => {
   const aggregateQry = [
     {
       $match: {
-        driver: new mongoose.Types.ObjectId(userId),
+        "driver.dId": new mongoose.Types.ObjectId(userId),
         status: "completed"
       }
     },
-    ...lookUp("source"),
+    ...lookUp("source_loc"),
+    ...lookUp("end_loc"),
     {
       $lookup: {
-        foreignField: "trip",
-        localField: "_id",
-        from: "subtrips",
-        as: "sub_trip"
+        from: "trucks",
+        localField: "truck",
+        foreignField: "_id",
+        as: "truck"
       }
     },
-    { $unwind: { path: "$sub_trip", preserveNullAndEmptyArrays: true } },
-    ...lookUp("sub_trip.dest")
+    { $unwind: { path: "$truck", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        "truck._id": 0,
+        "truck.is_avail": 0,
+        "truck.createdAt": 0,
+        "truck.updatedAt": 0,
+        "truck.__v": 0,
+      }
+    }
   ];
 
+  // console.log({ aggregateQry: JSON.stringify(aggregateQry) })
   const trips = await tripModel.aggregate(aggregateQry);
 
   res.status(200).json({ trips });
 });
 
-// -------------------------- SECOND TRIP -----------------------
-exports.createSubTrip = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  let trip = await tripModel.findById(id);
-
-  if (!trip)
-    return next(new ErrorHandler("Trip not found", 404));
-
-
-
-  let subTrip = await subTripModel.findOne({ trip: id });
-  if (subTrip) {
-    return next(new ErrorHandler("Trip is already started.", 400));
-  }
-  subTrip = await subTripModel.create({ ...req.body, trip: id });
-
-  res.status(201).json({ subTrip });
-});
-
-exports.updateSubTrip = catchAsyncError(async (req, res, next) => {
-  const { id, subId } = req.params;
-
-  let updatedData = {};
-  switch (req.query.UPDATE_TRIP) {
-
-
-    // default:
-    // Object.entries(req.body).forEach(([k, v]) => {
-    //   if (["arrival_time", "load_time_end", "load_time_start", "end_milage"].includes(k)) {
-    //     updatedData[k] = v;
-    //   }
-    // });
-    // break;
-  }
-
-  const trip = await tripModel.findById(id);
-  const subTrip = await subTripModel.findOneAndUpdate({ _id: subId, trip: id }, updatedData, {
-    new: true,
-    runValidators: true,
-    validateBeforeSave: true
-  });
-  if (!trip || !subTrip) {
-    return next(new ErrorHandler("Trip not found.", 404));
-  }
-
-  res.status(200).json({ subTrip });
-});
 
 // --------------------------------- ADMIN ----------------------------------------
 // Get a single document by ID
