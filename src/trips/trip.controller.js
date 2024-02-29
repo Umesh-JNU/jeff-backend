@@ -12,9 +12,13 @@ const { s3UploadMulti } = require("../../utils/s3");
 exports.createTrip = catchAsyncError(async (req, res, next) => {
   console.log("createTrip", req.body);
   const userId = req.userId;
-  const user = await userModel.findById(userId);
+  const user = await userModel.findById(userId).select("+hasTrip");
   if (!user) {
     return next(new ErrorHandler("Driver not found.", 404));
+  }
+
+  if (user.hasTrip) {
+    return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
   }
 
   const { truck } = req.body;
@@ -27,18 +31,16 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("The truck is already in use.", 400));
   }
 
-  let trip = await tripModel.findOne({ "driver.dId": userId, status: 'on-going' });
-  if (trip) {
-    return next(new ErrorHandler("Your current trip is not completed. Can't start another one.", 400));
-  }
-
-  trip = await tripModel.create({
+  const trip = await tripModel.create({
     ...req.body,
     driver: [{ dId: userId, time: Date.now() }]
   });
   if (trip) {
     isAvailTruck.is_avail = false;
     await isAvailTruck.save();
+
+    user.hasTrip = true;
+    await user.save();
   }
   res.status(201).json({ trip });
 });
@@ -58,7 +60,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const trip = await tripModel.findOne(query).populate([
     { path: "source_loc", select: "name lat long" },
     { path: "load_loc", select: "name lat long" },
-    { path: "unload_loc", select: "name lat long" },
+    { path: "unload_loc", select: "mill_name address", populate: { path: "address", select: "name lat long" } },
     { path: "end_loc", select: "name lat long" },
     { path: "truck", select: "truck_id plate_no name" }
   ]);
@@ -97,12 +99,22 @@ exports.shiftChange = catchAsyncError(async (req, res, next) => {
 });
 
 // Update trip
+const getMissingFields = (reqFields, body) => {
+  console.log({ b: Object.entries(reqFields), body });
+  return Object.entries(reqFields)
+    .filter(([k, v]) => !body[k])
+    .map(([k, v]) => reqFields[k])
+    .join(", ")
+    .replace(/,([^,]*)$/, ' and$1');
+};
+
 exports.updateTrip = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   let updatedData = {};
+  let missingFields = null;
   switch (req.query.UPDATE_TRIP) {
     case "ARRIVAL_TIME":
-      updatedData.arrival_time = Date.now();
+      updatedData.load_loc_arr_time = Date.now();
       break;
 
     case "LOAD_TIME_START":
@@ -111,6 +123,58 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
 
     case "LOAD_TIME_END":
       updatedData.load_time_end = Date.now();
+      break;
+
+    case "UNLOAD_TRIP":
+      var reqFields = {
+        "unload_loc": "Mill ID",
+        "prod_detail": "Product Details",
+        "slip_id": "Slip ID",
+        "block_no": "Block Number",
+        "load_milage": "Current Milage"
+      };
+      missingFields = getMissingFields(reqFields, req.body);
+      console.log({ missingFields })
+      if (missingFields) {
+        return next(new ErrorHandler(`${missingFields} are required.`, 400));
+      }
+
+      updatedData = { unload_loc, prod_detail, slip_id, block_no, load_milage } = req.body;
+
+      const files = req.files;
+      console.log({ files })
+      if (files && files.length > 0) {
+        const results = await s3UploadMulti(files, 'jeff');
+        let location = results.map((result) => result.Location);
+        updatedData.docs = location;
+      }
+      break;
+
+    case "UNLOAD_ARRIVAL_TIME":
+      updatedData.unload_loc_arr_time = Date.now();
+      break;
+
+    case "UNLOAD_TIME_START":
+      updatedData.unload_time_start = Date.now();
+      break;
+
+    case "UNLOAD_TIME_END":
+      updatedData.unload_time_end = Date.now();
+      break;
+
+    case "PRODUCT_DETAILS":
+      var reqFields = {
+        "unload_milage": "Current Milage",
+        "gross_wt": "Gross Wt.",
+        "tare_wt": "Tare Wt.",
+        "net_wt": "Net Wt."
+      };
+      missingFields = getMissingFields(reqFields, req.body);
+      console.log({ missingFields })
+      if (missingFields) {
+        return next(new ErrorHandler(`${missingFields} are required.`, 400));
+      }
+      updatedData = { unload_milage, gross_wt, tare_wt, net_wt } = req.body;
       break;
 
     default:
@@ -195,12 +259,7 @@ exports.createSubTrip = catchAsyncError(async (req, res, next) => {
   if (!trip)
     return next(new ErrorHandler("Trip not found", 404));
 
-  const files = req.files;
-  if (files) {
-    const results = await s3UploadMulti(files, 'jeff');
-    let location = results.map((result) => result.Location);
-    req.body.docs = location;
-  }
+
 
   let subTrip = await subTripModel.findOne({ trip: id });
   if (subTrip) {
@@ -216,24 +275,7 @@ exports.updateSubTrip = catchAsyncError(async (req, res, next) => {
 
   let updatedData = {};
   switch (req.query.UPDATE_TRIP) {
-    case "ARRIVAL_TIME":
-      updatedData.arrival_time = Date.now();
-      break;
 
-    case "UNLOAD_TIME_START":
-      updatedData.unload_time_start = Date.now();
-      break;
-
-    case "UNLOAD_TIME_END":
-      updatedData.unload_time_end = Date.now();
-      break;
-
-    default:
-      // case "END_MILAGE":
-      updatedData.gross_wt = req.body.gross_wt;
-      updatedData.tare_wt = req.body.tare_wt;
-      updatedData.net_wt = req.body.net_wt;
-      break;
 
     // default:
     // Object.entries(req.body).forEach(([k, v]) => {

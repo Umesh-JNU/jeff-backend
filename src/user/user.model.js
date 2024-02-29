@@ -74,6 +74,11 @@ const userSchema = new mongoose.Schema({
 		select: false,
 		type: Boolean,
 		default: false
+	},
+	hasTrip: {
+		select: false,
+		type: Boolean,
+		default: false
 	}
 	// resetPasswordToken: String,
 	// resetPasswordExpire: Date,

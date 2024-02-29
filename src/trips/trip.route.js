@@ -15,8 +15,7 @@ router.route("/:id/sub/:subId")
   .put(auth, updateSubTrip);
 
 router.route("/:id")
-  .post(auth, upload.array("images"), createSubTrip) // create subTrip 
-  .get(auth, getDriverTrip)
-  .put(auth, updateTrip);                            // update - anything
-
+  .put(auth, upload.array("docs"), updateTrip) // update - anything
+  .get(auth, getDriverTrip);
+  
 module.exports = router;
