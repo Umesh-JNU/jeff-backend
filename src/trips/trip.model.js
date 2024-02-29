@@ -30,7 +30,7 @@ const tripSchema = new mongoose.Schema({
 	},
 	unload_loc: {
 		type: mongoose.Schema.Types.ObjectId,
-		ref: "Location"
+		ref: "Mill"
 	},
 	end_loc: {
 		type: mongoose.Schema.Types.ObjectId,
