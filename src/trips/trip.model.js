@@ -46,6 +46,8 @@ const tripSchema = new mongoose.Schema({
 		type: Number,
 		required: [true, "Start Milage is Required."],
 	},
+	load_milage: { type: Number },
+	unload_milage: { type: Number },
 	end_milage: { type: Number },
 	dispatch: {
 		type: String,
