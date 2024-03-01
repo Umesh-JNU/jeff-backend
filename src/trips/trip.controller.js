@@ -8,6 +8,18 @@ const { v4: uuid } = require("uuid");
 const truckModel = require("../trucks/truck.model");
 const { s3UploadMulti } = require("../../utils/s3");
 
+const populateTrip = [
+  { path: "source_loc", select: "name lat long" },
+  { path: "load_loc", select: "name lat long" },
+  {
+    path: "unload_loc", select: "mill_name address", populate: {
+      path: "address", select: "name lat long"
+    }
+  },
+  { path: "end_loc", select: "name lat long" },
+  { path: "truck", select: "truck_id plate_no name" }
+];
+
 // Create a new document
 exports.createTrip = catchAsyncError(async (req, res, next) => {
   console.log("createTrip", req.body);
@@ -57,13 +69,7 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
     query = { ...query, status: "on-going" }
   }
 
-  const trip = await tripModel.findOne(query).populate([
-    { path: "source_loc", select: "name lat long" },
-    { path: "load_loc", select: "name lat long" },
-    { path: "unload_loc", select: "mill_name address", populate: { path: "address", select: "name lat long" } },
-    { path: "end_loc", select: "name lat long" },
-    { path: "truck", select: "truck_id plate_no name" }
-  ]);
+  const trip = await tripModel.findOne(query).populate(populateTrip);
   if (!trip) {
     return next(new ErrorHandler("No On-going trip", 400));
   }
@@ -74,28 +80,60 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
 // Shift Change 
 exports.shiftChange = catchAsyncError(async (req, res, next) => {
   console.log("shiftChange", req.body);
-  // const userId = req.userId;
-  // const { trip_id } = req.body;
-  const { trip_id, userId } = req.body;
+  const userId = req.userId;
+  const { trip_id } = req.body;
+  // const { trip_id, userId } = req.body;
 
-  console.log({ trip_id, userId })
-  let trip = await tripModel.findOne({ 'driver.dId': userId, status: 'on-going' });
-  if (trip) {
+  console.log({ trip_id, userId });
+  const user = await userModel.findById(userId).select("+hasTrip");
+  if (user.hasTrip) {
     return next(new ErrorHandler("Your current trip is not completed. Can't overtake another one.", 400));
   }
 
-  trip = await tripModel.findByIdAndUpdate(trip_id, { $push: { driver: { dId: userId, time: Date.now() } } }, {
-    new: true,
-    runValidators: true,
-    validateBeforeSave: true,
-  }).populate([
-    { path: "source_loc", select: "name lat long" },
-    { path: "load_loc", select: "name lat long" },
-    { path: "unload_loc", select: "name lat long" },
-    { path: "end_loc", select: "name lat long" },
-    { path: "truck", select: "truck_id plate_no name" }
-  ]);
-  res.status(200).json({ trip });
+  if (!isValidObjectId(trip_id)) {
+    return next(new ErrorHandler("Invalid trip id.", 400));
+  }
+
+  let trip = await tripModel.findOne({ _id: trip_id, status: "on-going" }).select("+driver");
+  if (!trip) {
+    return next(new ErrorHandler("Trip Not Found or Trip is completed.", 404));
+  }
+
+  const prevDriverId = trip.driver[trip.driver.length - 1].dId;
+  const prevDriver = await userModel.findOne({ _id: prevDriverId, hasTrip: true });
+  if (!prevDriver) {
+    return next(new ErrorHandler("Trip is already overtaken / completed.", 400));
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    trip = await tripModel.findByIdAndUpdate(trip_id, {
+      $push: {
+        driver: { dId: userId, time: Date.now() }
+      }
+    }, {
+      new: true,
+      runValidators: true,
+      validateBeforeSave: true,
+      session
+    }).populate(populateTrip);
+
+    user.hasTrip = true;
+    await user.save({ session });
+
+    prevDriver.hasTrip = false;
+    await prevDriver.save({ session });
+
+    await session.commitTransaction();
+    res.status(200).json({ trip });
+
+  } catch (err) {
+    await session.abortTransaction();
+    next(err);
+  } finally {
+    await session.endSession();
+  }
 });
 
 // Update trip
@@ -139,11 +177,12 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler(`${missingFields} are required.`, 400));
       }
 
-      updatedData = { unload_loc, prod_detail, slip_id, block_no, load_milage } = req.body;
+      const { unload_loc, prod_detail, slip_id, block_no, load_milage } = req.body;
+      updatedData = { unload_loc, prod_detail, slip_id, block_no, load_milage };
 
       const files = req.files;
-      console.log({ files })
-      if (files && files.length > 0) {
+      console.log({ files, c: files.length > 0 })
+      if (files && (files.length > 0)) {
         const results = await s3UploadMulti(files, 'jeff');
         let location = results.map((result) => result.Location);
         updatedData.docs = location;
@@ -174,7 +213,8 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
       if (missingFields) {
         return next(new ErrorHandler(`${missingFields} are required.`, 400));
       }
-      updatedData = { unload_milage, gross_wt, tare_wt, net_wt } = req.body;
+      const { unload_milage, gross_wt, tare_wt, net_wt } = req.body;
+      updatedData = { unload_milage, gross_wt, tare_wt, net_wt };
       break;
 
     default:
@@ -275,17 +315,14 @@ exports.getTripHistory = catchAsyncError(async (req, res, next) => {
 // Get a single document by ID
 exports.getTrip = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
+  console.log("getTrip: trip id = ", id)
   if (!isValidObjectId(id)) {
     return next(new ErrorHandler("Invalid Trip ID", 400));
   }
 
   const trip = await tripModel.findById(id).select("+driver").populate([
-    { path: "source_loc", select: "name lat long" },
-    { path: "load_loc", select: "name lat long" },
-    { path: "unload_loc", select: "name lat long" },
-    { path: "end_loc", select: "name lat long" },
-    { path: "driver", select: "firstname lastname mobile_no profile_url" },
-    { path: "truck", select: "truck_id plate_no name" }
+    ...populateTrip,
+    { path: "driver.dId", select: "firstname lastname mobile_no country_code" },
   ]);
   if (!trip) {
     return next(new ErrorHandler("Trip Not Found", 404));
@@ -300,44 +337,22 @@ exports.getAllTrip = catchAsyncError(async (req, res, next) => {
 
   const { status, keyword, currentPage, resultPerPage } = req.query;
 
-  // let match = {};
-  // if (keyword) {
-  //   match = { name: { $regex: keyword, $options: "i" } };
-  // }
+  const apiFeature = new APIFeatures(
+    tripModel.find({ status }).sort({ createdAt: -1 }).populate(populateTrip),
+    req.query
+  );
 
-  const limit = parseInt(resultPerPage);
-  const c = parseInt(currentPage);
-  const skip = limit * (c - 1);
+  let trips = await apiFeature.query;
+  console.log("trips", trips);
+  let tripCount = trips.length;
+  if (resultPerPage && currentPage) {
+    apiFeature.pagination();
 
-  const aggregateQry = [
-    { $match: { status: status } },
-    {
-      $lookup: {
-        foreignField: "_id",
-        localField: "truck",
-        from: "trucks",
-        as: "truck"
-      }
-    },
-    { $unwind: { path: "$truck", preserveNullAndEmptyArrays: true } },
-    ...lookUp("source_loc"),
-    ...lookUp("load_loc"),
-    ...lookUp("unload_loc"),
-    ...lookUp("end_loc"),
-    { $sort: { "createdAt": -1 } },
-    {
-      $facet: {
-        results: [{ $skip: skip }, { $limit: limit }],
-        count: [{ $count: "tripCount" }]
-      }
-    }
-  ];
-
-  // return res.json({aggregateQry})
-  let [{ results, count: [count] }] = await tripModel.aggregate(aggregateQry);
-
-  if (!count) count = { tripCount: 0 };
-  res.status(200).json({ trips: results, ...count });
+    console.log("tripCount", tripCount);
+    trips = await apiFeature.query.clone();
+  }
+  console.log("trips", trips);
+  res.status(200).json({ trips, tripCount });
 });
 
 // Delete a document by ID
