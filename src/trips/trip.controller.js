@@ -2,6 +2,7 @@ const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
 const { tripModel, subTripModel } = require("./trip.model");
+const locationModel = require("../location/location.model")
 const { userModel } = require("../user/user.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const { v4: uuid } = require("uuid");
@@ -223,15 +224,10 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
       break;
 
     case "CONT_WAREHOUSE":
-      const warehouse = await locationModel.findOne({
-        name: {
-          $regex: "warehouse",
-          $options: "i",
-        }
-      });
+      // const warehouse = await locationModel.findById("65ae4c081c0736fbf1828ccf");
 
       updatedData.unload_depart_time = Date.now();
-      updatedData.end_loc = warehouse._id;
+      updatedData.end_loc = "65ae4c081c0736fbf1828ccf";
       break;
 
     case "ARRIVE_WAREHOUSE":

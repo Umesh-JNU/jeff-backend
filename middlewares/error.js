@@ -58,7 +58,7 @@ module.exports = (err, req, res, next) => {
     let message;
     switch (field) {
       case "name":
-        message = "Category with this name already exists.";
+        message = "Location with this name already exists.";
         break;
       case "email":
         message = "User with this email already exists.";
