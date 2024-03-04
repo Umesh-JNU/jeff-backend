@@ -71,6 +71,9 @@ const tripSchema = new mongoose.Schema({
 	slip_id: { type: String },
 	block_no: { type: String },
 
+	unload_depart_time: { type: Date },
+	warehouse_arr_time: { type: Date },
+
 	end_time: { type: Date },
 }, { timestamps: true });
 

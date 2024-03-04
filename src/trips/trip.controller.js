@@ -62,6 +62,11 @@ exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   const { id } = req.params;
 
+  const driver = await userModel.findById(userId).select("+hasTrip");
+  if (!driver.hasTrip) {
+    return next(new ErrorHandler("No On-going trip", 400));
+  }
+
   let query = { "driver.dId": userId };
   if (id) {
     query = { ...query, _id: id }
@@ -217,20 +222,36 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
       updatedData = { unload_milage, gross_wt, tare_wt, net_wt };
       break;
 
+    case "CONT_WAREHOUSE":
+      const warehouse = await locationModel.findOne({
+        name: {
+          $regex: "warehouse",
+          $options: "i",
+        }
+      });
+
+      updatedData.unload_depart_time = Date.now();
+      updatedData.end_loc = warehouse._id;
+      break;
+
+    case "ARRIVE_WAREHOUSE":
+      updatedData.warehouse_arr_time = Date.now();
+      break;
+
     default:
-      // case "END_MILAGE":
-      updatedData.end_milage = req.body.end_milage;
+      const { end_milage } = req.body;
+      if (!end_milage) {
+        const tripUnloadLoc = await tripModel.findById(id);
+
+        updatedData.end_loc = tripUnloadLoc.unload_loc;
+        updatedData.end_milage = tripUnloadLoc.unload_milage;
+      } else {
+        updatedData.end_milage = end_milage;
+      }
+
       updatedData.end_time = Date.now();
       updatedData.status = 'completed';
       break;
-
-    // default:
-    // Object.entries(req.body).forEach(([k, v]) => {
-    //   if (["arrival_time", "load_time_end", "load_time_start", "end_milage"].includes(k)) {
-    //     updatedData[k] = v;
-    //   }
-    // });
-    // break;
   }
 
   console.log(updatedData, Object.entries(req.body));
@@ -245,6 +266,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
 
   if (!req.query.UPDATE_TRIP) {
     await truckModel.findByIdAndUpdate(trip.truck, { is_avail: true });
+    await userModel.findByIdAndUpdate(req.userId, { hasTrip: false });
   }
 
   res.status(200).json({ trip });
