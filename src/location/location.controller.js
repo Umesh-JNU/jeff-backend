@@ -65,6 +65,9 @@ exports.updateLocation = catchAsyncError(async (req, res, next) => {
 // Delete a document by ID
 exports.deleteLocation = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
+  if (id === "65ae4c081c0736fbf1828ccf") {
+    return next(new ErrorHandler("This location can't be deleted", 400));
+  }
   let location = await locationModel.findById(id);
 
   if (!location)

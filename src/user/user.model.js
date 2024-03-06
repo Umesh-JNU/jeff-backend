@@ -32,6 +32,38 @@ const logSchema = new mongoose.Schema({
 
 const logModel = mongoose.model('UserLog', logSchema);
 
+// ----------------------------------------- EMAIL OTP ---------------------------------------
+const otpSchema = new mongoose.Schema({
+	user: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "User",
+		required: [true, "Driver ID is required."],
+	},
+	email: {
+		type: String,
+		required: [true, "Email is required."],
+	},
+	otp: {
+		type: String,
+		required: [true, "OTP is required."]
+	}
+}, { timestamps: true });
+
+otpSchema.methods.is_valid = async function () {
+	const otpValidityDuration = 15 * 60 * 1000; // 15 minutes in milliseconds
+	const currentTime = new Date().getTime();
+	const otpCreationTime = new Date(this.createdAt).getTime();
+
+	// Calculate the time difference between current time and OTP creation time
+	const timeDifference = currentTime - otpCreationTime;
+
+	// Check if the time difference is within the OTP validity duration
+	return timeDifference <= otpValidityDuration;
+};
+
+const otpModel = mongoose.model("OTP", otpSchema);
+
+// -------------------------------------------- USER -------------------------------------------
 const userSchema = new mongoose.Schema({
 	email: {
 		type: String,
@@ -118,4 +150,4 @@ userSchema.methods.getResetPasswordToken = function () {
 
 const userModel = mongoose.model('User', userSchema);
 
-module.exports = { userModel, logModel };
+module.exports = { userModel, logModel, otpModel };

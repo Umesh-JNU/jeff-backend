@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+
+    p {
+      color: #555;
+      text-align: center;
+    }
+
+    .otp-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .otp {
+      font-size: 24px;
+      font-weight: bold;
+      color: #3498db;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Email Verification</h1>
+    <p>Thank you for signing up! To complete the registration process, please use the following OTP:</p>
+
+    <div class="otp-container">
+      <span class="otp">{{otp}}</span>
+    </div>
+
+    <p>If you didn't request this, please ignore this email. The OTP is valid for a limited time.</p>
+
+    <p class="footer">&copy; 2022 Your Company Name. All rights reserved.</p>
+  </div>
+
+</body>
+
+</html>

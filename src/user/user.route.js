@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { auth } = require("../../middlewares/auth");
-const { createUser, login, updateProfile, verifyOtp, resendOTP, getProfile, deleteUser, checkIn, checkOut } = require("./user.controller");
+const { createUser, login, updateProfile, verifyOtp, resendOTP, getProfile, deleteUser, checkIn, checkOut, verifyEmail, verifyEmailOTP } = require("./user.controller");
 const { upload } = require("../../utils/s3");
 
 router.post("/register", createUser);
@@ -14,5 +14,8 @@ router.delete("/delete-account", auth, deleteUser);
 
 router.put("/check-in", auth, checkIn);
 router.put("/check-out", auth, checkOut);
+
+router.post("/verify-email", auth, verifyEmail);
+router.put("/verify-email-otp", auth, verifyEmailOTP);
 
 module.exports = router;

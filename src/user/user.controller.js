@@ -1,10 +1,14 @@
-const { default: mongoose, isValidObjectId } = require('mongoose');
+const { default: mongoose, isValidObjectId, mongo } = require('mongoose');
 
+const fs = require('fs');
+const path = require('path');
 const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
-const { userModel, logModel } = require("./user.model");
+const { userModel, logModel, otpModel } = require("./user.model");
 const { s3Uploadv2 } = require('../../utils/s3');
+const sendEmail = require('../../utils/sendEmail');
+const { optGenerator } = require('../../utils/randGenerator');
 
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SERVICE_SID } = process.env;
 const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
@@ -125,6 +129,94 @@ exports.resendOTP = catchAsyncError(async (req, res, next) => {
 
   res.status(200).json({ message: "OTP sent successfully" });
 });
+
+// Get Email OTP / or resend
+exports.verifyEmail = catchAsyncError(async (req, res, next) => {
+  console.log("verifyEmail", req.body);
+  const { email } = req.body;
+  if (!email) {
+    return next(new ErrorHandler("Please enter your email.", 400));
+  }
+
+  const user = await userModel.findById(req.userId);
+  if (!user) {
+    return next(new ErrorHandler("User Not Found", 404));
+  }
+
+  const otp = optGenerator(6);
+  const otpInstance = await otpModel.findOne({ user: req.userId });
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    if (!otpInstance) {
+      await otpModel.create([{ otp, email, user: user._id }], { session });
+    } else {
+      otpInstance.otp = otp;
+      otpInstance.email = email;
+      await otpInstance.save({ session });
+    }
+
+    const template = fs.readFileSync(path.join(__dirname + `/verifyEmail.html`), "utf-8")
+    // /{{(\w+)}}/g - match {{Word}} globally
+    const renderedTemplate = template.replace(/{{(\w+)}}/g, (match, key) => {
+      console.log({ match, key })
+      return otp || match;
+    });
+
+    await sendEmail({
+      subject: `Email Verification`,
+      email,
+      message: renderedTemplate
+    });
+
+    await session.commitTransaction();
+    res.status(200).json({
+      success: true,
+      message: "OTP sent successfully",
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    next(err);
+  } finally {
+    await session.endSession();
+  }
+});
+
+// vefiry email OTP
+exports.verifyEmailOTP = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const { otp } = req.body;
+
+  if (!otp) {
+    return next(new ErrorHandler("Please provide otp.", 400));
+  }
+
+  const user = await userModel.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User Not Found", 404));
+  }
+
+  const otpInstance = await otpModel.findOne({ otp, user: user._id });
+  const isValidOTP = await otpInstance.is_valid();
+  if (!otpInstance || !isValidOTP) {
+    if (otpInstance) {
+      await otpInstance.deleteOne();
+    }
+    return next(new ErrorHandler("OTP is invalid or has been expired.", 400));
+  }
+
+  user.email = otpInstance.email;
+  await user.save();
+  await otpInstance.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: "OTP verified successfully"
+  })
+})
+
 
 // Get Profile
 exports.getProfile = catchAsyncError(async (req, res, next) => {
