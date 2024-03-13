@@ -326,45 +326,48 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// --------------------------------- USER LOG ---------------------------------
-// exports.checkIn = catchAsyncError(async (req, res, next) => {
-//   const userId = req.userId;
+// get log by date
+exports.getAllLogs = catchAsyncError(async (req, res, next) => {
+  console.log("getAllLogs", req.params);
 
-//   const currentTime = Date.now();
-//   const todayDate = new Date().setHours(0, 0, 0, 0);
-//   let todayLog = await logModel.findOne({
-//     user: userId,
-//     start: { $lte: currentTime, $gt: todayDate }
-//   });
+  let { date } = req.params;
+  if (!date) {
+    date = new Date().setHours(0, 0, 0, 0);
+  } else {
+    date = new Date(date);
+  }
 
-//   if (!todayLog) {
-//     todayLog = await logModel.create({ user: userId, start: Date.now() });
-//   }
-//   res.status(200).json({ todayLog });
-// });
+  const nextDate = new Date(date).setDate(date.getDate() + 1);
+  console.log({ date, nextDate: new Date(nextDate) });
+  const logs = await logModel.find({
+    start: { $gte: date, $lt: nextDate }
+  }).populate([{ path: "user", select: "firstname lastname" }]);
 
-// exports.checkOut = catchAsyncError(async (req, res, next) => {
-//   const userId = req.userId;
-//   const { logId } = req.body;
+  res.status(200).json({ logs });
+});
 
-//   let todayLog = await logModel.findOne({
-//     user: userId,
-//     _id: logId
-//   });
+exports.getAllDriverLogs = catchAsyncError(async (req, res, next) => {
+  console.log("getAllDriverLogs", req.params, req.query)
+  const { id } = req.params;
+  const { from, to } = req.query;
 
-//   if (!todayLog) {
-//     return next(new ErrorHandler("You haven't checked in.", 400));
-//   }
+  const user = await userModel.findById(id);
+  if (!user) {
+    return next(new ErrorHandler("User Not Found", 404));
+  }
 
-//   const nextDate = new Date(todayLog.start).setUTCHours(24, 0, 0, 0);
-//   console.log({ nextDate, v: nextDate < Date.now() })
-//   if (Date.now() < nextDate) {
-//     todayLog.end = Date.now();
-//     await todayLog.save();
-//   }
-//   res.status(200).json({ todayLog });
-// });
+  const dt = new Date(to);
+  const nextDate = new Date(dt).setDate(dt.getDate() + 1);
 
+  const userLogs = await logModel.find({
+    user: id,
+    start: { $gte: new Date(from), $lte: nextDate }
+  });
+
+  res.status(200).json({ userLogs, user });
+});
+
+// ---------------------------- CHECK IN / CHECK OUT ----------------------------
 exports.checkIn = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
   await logModel.create({ user: userId, start: Date.now() });

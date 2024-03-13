@@ -10,13 +10,16 @@ router.post("/login", adminLogin);
 router.put("/update-profile", auth, isAdmin, updateAdminProfile);
 
 // ------------------------------------ USER ---------------------------------
-const { getAllUser, getUser, updateUser, deleteUser } = require("../user");
+const { getAllUser, getUser, updateUser, deleteUser, getAllLogs, getAllDriverLogs } = require("../user");
 
 router.get("/user", auth, isAdmin, getAllUser);
 router.route("/user/:id")
   .get(auth, isAdmin, getUser)
   .put(auth, isAdmin, updateUser)
   .delete(auth, isAdmin, deleteUser);
+
+router.get('/logs/:date', auth, isAdmin, getAllLogs);
+router.get('/driver-log/:id', auth, isAdmin, getAllDriverLogs);
 
 // ------------------------------------ TRIP ---------------------------------
 const { getAllTrip, getTrip, deleteTrip } = require("../trips");

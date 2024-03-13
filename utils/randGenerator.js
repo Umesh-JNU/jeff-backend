@@ -1,5 +1,6 @@
 exports.optGenerator = (length = 4) => {
-  return Math.floor(Math.random() * 9 * Math.pow(10, length-1)) + 1000;
+  const a = Math.pow(10, length - 1);
+  return Math.floor(a * (1 + Math.random() * 9));
 }
 
 exports.passwordGenerator = (length = 8) => {
