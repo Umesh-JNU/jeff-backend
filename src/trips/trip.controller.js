@@ -1,11 +1,9 @@
 const ErrorHandler = require("../../utils/errorHandler");
 const catchAsyncError = require("../../utils/catchAsyncError");
 const APIFeatures = require("../../utils/apiFeatures");
-const { tripModel, subTripModel } = require("./trip.model");
-const locationModel = require("../location/location.model")
+const { tripModel, locRecordModel } = require("./trip.model");
 const { userModel } = require("../user/user.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
-const { v4: uuid } = require("uuid");
 const truckModel = require("../trucks/truck.model");
 const { s3UploadMulti } = require("../../utils/s3");
 
@@ -54,6 +52,8 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
 
     user.hasTrip = true;
     await user.save();
+
+    locRecordModel.create()
   }
   res.status(201).json({ trip });
 });
@@ -193,6 +193,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
         let location = results.map((result) => result.Location);
         updatedData.docs = location;
       }
+      updatedData.second_trip_start_time = Date.now();
       break;
 
     case "UNLOAD_ARRIVAL_TIME":
