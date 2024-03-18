@@ -98,6 +98,7 @@ const locRecordSchema = new mongoose.Schema({
 	unload_start: {},
 	unload_end: {},
 
+	product: {},
 	unload_depart: {},
 	warehouse_arr: {},
 
