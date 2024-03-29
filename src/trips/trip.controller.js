@@ -148,7 +148,7 @@ exports.shiftChange = catchAsyncError(async (req, res, next) => {
     await prevDriver.save({ session });
 
     await session.commitTransaction();
-    res.status(200).json({ trip });
+    res.status(200).json({ trip, previousDriver: prevDriverId });
 
   } catch (err) {
     await session.abortTransaction();
