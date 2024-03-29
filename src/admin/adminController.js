@@ -69,3 +69,27 @@ exports.postMultipleImages = catchAsyncError(async (req, res, next) => {
   }
 });
 
+exports.calcCharge = catchAsyncError(async (req, res, next) => {
+  console.log("calcCharge", req.body);
+  const start_milage = parseFloat(req.body.start_milage);
+  const load_milage = parseFloat(req.body.load_milage);
+  const unload_milage = parseFloat(req.body.unload_milage);
+  const end_milage = parseFloat(req.body.end_milage);
+  const fuel_eff = parseFloat(req.body.fuel_eff);
+  const fuel_price = parseFloat(req.body.fuel_price);
+
+  let ttl_milage = 0;
+  if (load_milage > 0 && load_milage > start_milage) {
+    ttl_milage += load_milage - start_milage;
+  }
+  if (unload_milage > 0 && unload_milage > load_milage) {
+    ttl_milage += unload_milage - load_milage;
+  }
+  if (end_milage > 0 && end_milage > unload_milage) {
+    ttl_milage += end_milage - unload_milage;
+  }
+
+  console.log({ ttl_milage, fuel_eff, fuel_price, start_milage, load_milage, unload_milage, end_milage })
+  const price = ttl_milage * fuel_eff * fuel_price;
+  res.status(200).json({ price });
+}); 

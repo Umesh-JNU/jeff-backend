@@ -4,10 +4,11 @@ const { auth, isAdmin } = require("../../middlewares/auth");
 const { upload } = require("../../utils/s3");
 
 // ------------------------------------ ADMIN --------------------------------
-const { adminLogin, updateAdminProfile, postSingleImage } = require("./adminController");
+const { adminLogin, updateAdminProfile, postSingleImage, calcCharge } = require("./adminController");
 
 router.post("/login", adminLogin);
 router.put("/update-profile", auth, isAdmin, updateAdminProfile);
+router.post("/calc-charge", auth, isAdmin, calcCharge);
 
 // ------------------------------------ USER ---------------------------------
 const { getAllUser, getUser, updateUser, deleteUser, getAllLogs, getAllDriverLogs } = require("../user");

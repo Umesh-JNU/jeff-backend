@@ -6,6 +6,7 @@ const { userModel } = require("../user/user.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const truckModel = require("../trucks/truck.model");
 const { s3UploadMulti } = require("../../utils/s3");
+const millModel = require("../mill/mill.model");
 
 const populateTrip = [
   { path: "source_loc", select: "name lat long" },
@@ -273,8 +274,9 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
       const { end_milage } = req.body;
       if (!end_milage) {
         const tripUnloadLoc = await tripModel.findById(id);
+        const mill = await millModel.findById(tripUnloadLoc.unload_loc);
 
-        updatedData.end_loc = tripUnloadLoc.unload_loc;
+        updatedData.end_loc = mill.address;
         updatedData.end_milage = tripUnloadLoc.unload_milage;
       } else {
         updatedData.end_milage = end_milage;
