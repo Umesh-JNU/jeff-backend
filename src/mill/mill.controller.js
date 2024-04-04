@@ -5,6 +5,8 @@ const millModel = require("./mill.model");
 const { isValidObjectId, default: mongoose } = require("mongoose");
 const { v4: uuid } = require("uuid");
 const locationModel = require("../location/location.model");
+const notificationModel = require("../notification/notification.model");
+const { userModel } = require("../user/user.model");
 
 // Create a new document
 exports.createMill = catchAsyncError(async (req, res, next) => {
@@ -12,6 +14,16 @@ exports.createMill = catchAsyncError(async (req, res, next) => {
   const { mill_name, name, lat, long } = req.body;
   const newLoaction = await locationModel.create({ name, lat, long });
   const mill = await millModel.create({ mill_name, address: newLoaction._id });
+  if (mill) {
+    const userIDs = await userModel.distinct('_id', { role: 'driver' });
+
+    const notificationData = userIDs.map(id => ({
+      driver: id,
+      title: "New Mill Created",
+      text: `A new mill, ${mill_name}, is created.`
+    }));
+    await notificationModel.create(notificationData);
+  }
   res.status(201).json({ mill });
 });
 

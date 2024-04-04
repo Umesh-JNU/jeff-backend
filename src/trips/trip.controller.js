@@ -276,6 +276,7 @@ exports.updateTrip = catchAsyncError(async (req, res, next) => {
         const tripUnloadLoc = await tripModel.findById(id);
         const mill = await millModel.findById(tripUnloadLoc.unload_loc);
 
+        console.log({ tripUnloadLoc, mill });
         updatedData.end_loc = mill.address;
         updatedData.end_milage = tripUnloadLoc.unload_milage;
       } else {

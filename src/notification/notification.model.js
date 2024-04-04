@@ -1,21 +1,25 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-	user: {
+	driver: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: "User",
-		required: [true, "User ID is required."]
+		required: [true, "Driver is required."],
+		select: false
 	},
 	title: {
 		type: String,
-		required: [true, "Notification Title is required."],
+		required: [true, "Notification title is required"]
 	},
-	desc: {
+	text: {
 		type: String,
-		required: [true, "Notification Description is required."],
+		required: [true, "Notification title is required"]
+	},
+	seen: {
+		type: Boolean,
+		default: false,
 	}
-}, { timestamps: true });
+}, { timestamps: false });
 
-const notificationModel = mongoose.model('Notification', notificationSchema);
 
-module.exports = notificationModel;
+module.exports = mongoose.model("Notification", notificationSchema);

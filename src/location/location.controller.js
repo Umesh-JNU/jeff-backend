@@ -4,12 +4,24 @@ const APIFeatures = require("../../utils/apiFeatures");
 const locationModel = require("./location.model");
 const { isValidObjectId } = require("mongoose");
 const { tripModel, subTripModel } = require("../trips/trip.model");
+const notificationModel = require("../notification/notification.model");
+const { userModel } = require("../user/user.model");
 
 // Create a new document
 exports.createLocation = catchAsyncError(async (req, res, next) => {
   console.log("createLocation", req.body);
 
   const location = await locationModel.create(req.body);
+  if (location) {
+    const userIDs = await userModel.distinct('_id', { role: 'driver' });
+
+    const notificationData = userIDs.map(id => ({
+      driver: id,
+      title: "New Location Created",
+      text: `A new location, ${req.body.name}, is created.`
+    }));
+    await notificationModel.create(notificationData);
+  }
   res.status(201).json({ location });
 });
 
