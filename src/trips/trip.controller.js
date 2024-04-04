@@ -69,26 +69,30 @@ exports.createTrip = catchAsyncError(async (req, res, next) => {
 // Get Current Trip or Trip by _id of Driver
 exports.getDriverTrip = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-  const { id } = req.params;
 
   const driver = await userModel.findById(userId).select("+hasTrip");
   if (!driver.hasTrip) {
     return next(new ErrorHandler("No On-going trip", 400));
   }
 
-  let query = { "driver.dId": userId };
-  if (id) {
-    query = { ...query, _id: id }
-  } else {
-    query = { ...query, status: "on-going" }
-  }
-
-  const trip = await tripModel.findOne(query).populate(populateTrip);
+  const trip = await tripModel.findOne({ "driver.dId": userId, status: "on-going" }).populate(populateTrip);
   if (!trip) {
     return next(new ErrorHandler("No On-going trip", 400));
   }
 
   res.status(200).json({ trip, end_time: trip.end_time });
+});
+
+exports.getTripHisDetail = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const { id } = req.params;
+
+  const trip = await tripModel.findOne({ "driver.dId": userId, _id: id }).populate(populateTrip);
+  if (!trip) {
+    return next(new ErrorHandler("No On-going trip", 400));
+  }
+
+  res.status(200).json({ trip });
 });
 
 // Shift Change 
